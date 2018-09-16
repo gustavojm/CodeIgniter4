@@ -166,6 +166,8 @@ class Session implements SessionInterface
 		$this->cookieDomain = $config->cookieDomain;
 		$this->cookiePath = $config->cookiePath;
 		$this->cookieSecure = $config->cookieSecure;
+
+		helper('array');
 	}
 
 	//--------------------------------------------------------------------
@@ -184,6 +186,12 @@ class Session implements SessionInterface
 		elseif ((bool) ini_get('session.auto_start'))
 		{
 			$this->logger->error('Session: session.auto_start is enabled in php.ini. Aborting.');
+
+			return;
+		}
+		elseif (session_status() === PHP_SESSION_ACTIVE)
+		{
+			$this->logger->warning('Session: Sessions is enabled, and one exists.Please don\'t $session->start();');
 
 			return;
 		}
@@ -233,6 +241,8 @@ class Session implements SessionInterface
 		$this->initVars();
 
 		$this->logger->info("Session: Class initialized using '" . $this->sessionDriverName . "' driver.");
+
+		return $this;
 	}
 
 	//--------------------------------------------------------------------
@@ -461,18 +471,23 @@ class Session implements SessionInterface
 	 */
 	public function get(string $key = null)
 	{
-		if (isset($key))
+		if (! empty($key) && $value = dot_array_search($key, $_SESSION))
 		{
-			return $_SESSION[$key] ?? null;
+			return $value;
 		}
 		elseif (empty($_SESSION))
 		{
 			return [];
 		}
 
+		if (! empty($key))
+		{
+			return null;
+		}
+
 		$userdata = [];
 		$_exclude = array_merge(
-				['__ci_vars'], $this->getFlashKeys(), $this->getTempKeys()
+			['__ci_vars'], $this->getFlashKeys(), $this->getTempKeys()
 		);
 
 		$keys = array_keys($_SESSION);
@@ -499,6 +514,24 @@ class Session implements SessionInterface
 	public function has(string $key)
 	{
 		return isset($_SESSION[$key]);
+	}
+
+       //--------------------------------------------------------------------
+
+      /**
+	 * Push new value onto session value that is array.
+	 *
+	 * @param string	   $key	Identifier of the session property we are interested in.
+       * @param array            $data   value to be pushed to existing session key.
+	 *
+	 * @return void
+	 */
+	public function push(string $key, array $data)
+	{
+               if ($this->has($key) && is_array($value = $this->get($key)))
+               {
+                   $this->set($key, array_merge($value, $data));
+               }
 	}
 
 	//--------------------------------------------------------------------
@@ -582,7 +615,7 @@ class Session implements SessionInterface
 	 * flashdata property, with $value containing the property value.
 	 *
 	 * @param array|string $data  Property identifier or associative array of properties
-	 * @param null         $value Property value if $data is a scalar
+	 * @param string|array $value Property value if $data is a scalar
 	 */
 	public function setFlashdata($data, $value = null)
 	{

@@ -57,13 +57,8 @@ class DotEnv
 	 * @param string $path
 	 * @param string $file
 	 */
-	public function __construct(string $path, $file = '.env')
+	public function __construct(string $path, string $file = '.env')
 	{
-		if ( ! is_string($file))
-		{
-			$file = '.env';
-		}
-
 		$this->path = rtrim($path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $file;
 	}
 
@@ -109,6 +104,7 @@ class DotEnv
 			}
 		}
 
+		return true; // for success
 	}
 
 	//--------------------------------------------------------------------
@@ -126,11 +122,17 @@ class DotEnv
 		list($name, $value) = $this->normaliseVariable($name, $value);
 
 		if ( ! getenv($name, true))
+		{
 			putenv("$name=$value");
+		}
 		if (empty($_ENV[$name]))
+		{
 			$_ENV[$name] = $value;
+		}
 		if (empty($_SERVER[$name]))
+		{
 			$_SERVER[$name] = $value;
+		}
 	}
 
 	//--------------------------------------------------------------------

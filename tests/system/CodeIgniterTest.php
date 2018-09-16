@@ -1,8 +1,9 @@
 <?php namespace CodeIgniter;
 
-use CodeIgniter\Autoloader\MockFileLocator;
-use CodeIgniter\Router\RouteCollection;
 use Config\App;
+use Tests\Support\MockCodeIgniter;
+use CodeIgniter\Router\RouteCollection;
+use Tests\Support\Autoloader\MockFileLocator;
 
 /**
  * @backupGlobals enabled
@@ -20,6 +21,8 @@ class CodeIgniterTest extends \CIUnitTestCase
 
 	public function setUp()
 	{
+		parent::setUp();
+
 		Services::reset();
 
 		$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
@@ -39,7 +42,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		$_SERVER['argc'] = 2;
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains('<h1>Welcome to CodeIgniter</h1>', $output);
@@ -55,7 +58,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		$_SERVER['argc'] = 1;
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains('<h1>Welcome to CodeIgniter</h1>', $output);
@@ -81,7 +84,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		Services::injectMock('router', $router);
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains('You want to see "about" page.', $output);
@@ -105,7 +108,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		Services::injectMock('router', $router);
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains('<h1>Welcome to CodeIgniter</h1>', $output);
@@ -122,7 +125,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		$_SERVER['argc'] = 2;
 
 		// Inject mock router.
-		$routes = new RouteCollection(new MockFileLocator(new \Config\Autoload()));
+		$routes = new RouteCollection(new MockFileLocator(new \Config\Autoload()), new \Config\Modules());
 		$routes->setAutoRoute(false);
 		$routes->set404Override(function() {
 			echo '404 Override by Closure.';
@@ -131,7 +134,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		Services::injectMock('router', $router);
 
 		ob_start();
-		$this->codeigniter->run($routes);
+		$this->codeigniter->useSafeOutput(true)->run($routes);
 		$output = ob_get_clean();
 
 		$this->assertContains('404 Override by Closure.', $output);
@@ -157,7 +160,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		Services::injectMock('router', $router);
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains('You want to see "about" page.', $output);
@@ -185,7 +188,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		Services::injectMock('router', $router);
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains("You want to see 'about' page.", $output);
@@ -221,7 +224,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		Services::injectMock('router', $router);
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$this->assertContains('<h1>Welcome to CodeIgniter</h1>', $output);
@@ -237,7 +240,7 @@ class CodeIgniterTest extends \CIUnitTestCase
 		$_SERVER['SERVER_PROTOCOL'] = 'HTTP/2';
 
 		ob_start();
-		$this->codeigniter->run();
+		$this->codeigniter->useSafeOutput(true)->run();
 		$output = ob_get_clean();
 
 		$response = $this->getPrivateProperty($this->codeigniter, 'response');

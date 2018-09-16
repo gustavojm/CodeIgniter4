@@ -35,7 +35,8 @@
  * @since	Version 3.0.0
  * @filesource
  */
-use CodeIgniter\PageNotFoundException;
+use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\Router\Exceptions\RouterException;
 
 /**
  * Routing exception
@@ -122,6 +123,13 @@ class Router implements RouterInterface
 	 */
 	protected $detectedLocale = null;
 
+	/**
+	 * The filter info from Route Collection
+	 * if the matched route should be filtered.
+	 * @var string
+	 */
+	protected $filterInfo;
+
 	//--------------------------------------------------------------------
 
 	/**
@@ -155,11 +163,18 @@ class Router implements RouterInterface
 		// everything runs off of it's default settings.
 		if (empty($uri))
 		{
-			return strpos($this->controller, '\\') === false ? $this->collection->getDefaultNamespace() . $this->controller : $this->controller;
+			return strpos($this->controller, '\\') === false
+				? $this->collection->getDefaultNamespace() . $this->controller
+				: $this->controller;
 		}
 
 		if ($this->checkRoutes($uri))
 		{
+			if ($this->collection->isFiltered($uri))
+			{
+				$this->filterInfo = $this->collection->getFilterForRoute($uri);
+			}
+
 			return $this->controller;
 		}
 
@@ -174,6 +189,18 @@ class Router implements RouterInterface
 		$this->autoRoute($uri);
 
 		return $this->controller;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns the filter info for the matched route, if any.
+	 *
+	 * @return string
+	 */
+	public function getFilter()
+	{
+		return $this->filterInfo;
 	}
 
 	//--------------------------------------------------------------------
@@ -312,9 +339,9 @@ class Router implements RouterInterface
 	 *
 	 * @return $this
 	 */
-	public function setTranslateURIDashes($val = false): self
+	public function setTranslateURIDashes(bool $val = false): self
 	{
-		$this->translateURIDashes = (bool) $val;
+		$this->translateURIDashes = $val;
 
 		return $this;
 	}
@@ -359,6 +386,10 @@ class Router implements RouterInterface
 	protected function checkRoutes(string $uri): bool
 	{
 		$routes = $this->collection->getRoutes($this->collection->getHTTPVerb());
+
+		$uri = $uri == '/'
+			? $uri
+			: ltrim($uri, '/ ');
 
 		// Don't waste any time
 		if (empty($routes))
@@ -613,7 +644,7 @@ class Router implements RouterInterface
 	{
 		if (empty($this->controller))
 		{
-			throw new \RuntimeException('Unable to determine what should be displayed. A default route has not been specified in the routing file.');
+			throw RouterException::forMissingDefaultRoute();
 		}
 
 		// Is the method being specified?

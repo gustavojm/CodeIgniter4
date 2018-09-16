@@ -1,4 +1,6 @@
-<?php namespace CodeIgniter\HTTP;
+<?php
+
+namespace CodeIgniter\HTTP;
 
 /**
  * CodeIgniter
@@ -36,6 +38,7 @@
  * @filesource
  */
 use CodeIgniter\Exceptions\FrameworkException;
+use CodeIgniter\HTTP\Exceptions\HTTPException;
 use CodeIgniter\HTTP\Files\FileCollection;
 use CodeIgniter\HTTP\Files\UploadedFile;
 use CodeIgniter\Services;
@@ -79,7 +82,7 @@ class IncomingRequest extends Request
 	protected $enableCSRF = false;
 
 	/**
-	 * A \CodeIgniter\HTTPLite\URI instance.
+	 * A \CodeIgniter\HTTP\URI instance.
 	 *
 	 * @var URI
 	 */
@@ -97,7 +100,7 @@ class IncomingRequest extends Request
 	 *
 	 * @var \CodeIgniter\HTTP\Negotiate
 	 */
-	protected $negotiate;
+	protected $negotiator;
 
 	/**
 	 * The default Locale this request
@@ -241,6 +244,8 @@ class IncomingRequest extends Request
 		// If the intl extension is loaded, make sure
 		// that we set the locale for it... if not, though,
 		// don't worry about it.
+		// this should not block code coverage thru unit testing
+		// @codeCoverageIgnoreStart
 		try
 		{
 			if (class_exists('\Locale', false))
@@ -249,8 +254,9 @@ class IncomingRequest extends Request
 			}
 		} catch (\Exception $e)
 		{
-
+			
 		}
+		// @codeCoverageIgnoreEnd
 
 		return $this;
 	}
@@ -293,12 +299,10 @@ class IncomingRequest extends Request
 		if ( ! empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off')
 		{
 			return true;
-		}
-		elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+		} elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
 		{
 			return true;
-		}
-		elseif ( ! empty($_SERVER['HTTP_FRONT_END_HTTPS']) && strtolower($_SERVER['HTTP_FRONT_END_HTTPS']) !== 'off')
+		} elseif ( ! empty($_SERVER['HTTP_FRONT_END_HTTPS']) && strtolower($_SERVER['HTTP_FRONT_END_HTTPS']) !== 'off')
 		{
 			return true;
 		}
@@ -321,7 +325,7 @@ class IncomingRequest extends Request
 	 */
 	public function getVar($index = null, $filter = null, $flags = null)
 	{
-		return $this->fetchGlobal(INPUT_REQUEST, $index, $filter, $flags);
+		return $this->fetchGlobal('request', $index, $filter, $flags);
 	}
 
 	//--------------------------------------------------------------------
@@ -374,7 +378,7 @@ class IncomingRequest extends Request
 	 */
 	public function getGet($index = null, $filter = null, $flags = null)
 	{
-		return $this->fetchGlobal(INPUT_GET, $index, $filter, $flags);
+		return $this->fetchGlobal('get', $index, $filter, $flags);
 	}
 
 	//--------------------------------------------------------------------
@@ -390,7 +394,7 @@ class IncomingRequest extends Request
 	 */
 	public function getPost($index = null, $filter = null, $flags = null)
 	{
-		return $this->fetchGlobal(INPUT_POST, $index, $filter, $flags);
+		return $this->fetchGlobal('post', $index, $filter, $flags);
 	}
 
 	//--------------------------------------------------------------------
@@ -444,7 +448,7 @@ class IncomingRequest extends Request
 	 */
 	public function getCookie($index = null, $filter = null, $flags = null)
 	{
-		return $this->fetchGlobal(INPUT_COOKIE, $index, $filter, $flags);
+		return $this->fetchGlobal('cookie', $index, $filter, $flags);
 	}
 
 	//--------------------------------------------------------------------
@@ -477,7 +481,9 @@ class IncomingRequest extends Request
 		// If the session hasn't been started, or no
 		// data was previously saved, we're done.
 		if (empty($_SESSION['_ci_old_input']))
+		{
 			return;
+		}
 
 		// Check for the value in the POST array first.
 		if (isset($_SESSION['_ci_old_input']['post'][$key]))
@@ -530,7 +536,6 @@ class IncomingRequest extends Request
 		return $this->files->all(); // return all files
 	}
 
-
 	//--------------------------------------------------------------------
 
 	/**
@@ -581,10 +586,14 @@ class IncomingRequest extends Request
 			$this->uri->setHost(parse_url($baseURL, PHP_URL_HOST));
 			$this->uri->setPort(parse_url($baseURL, PHP_URL_PORT));
 			$this->uri->resolveRelativeURI(parse_url($baseURL, PHP_URL_PATH));
-		}
-		else
+		} else
 		{
-			throw FrameworkException::forEmptyBaseURL();
+			// @codeCoverageIgnoreStart
+			if ( ! is_cli())
+			{
+				throw FrameworkException::forEmptyBaseURL();
+			}
+			// @codeCoverageIgnoreEnd
 		}
 	}
 
@@ -598,7 +607,7 @@ class IncomingRequest extends Request
 	 *
 	 * @return string
 	 */
-	public function detectPath($protocol)
+	public function detectPath($protocol = '')
 	{
 		if (empty($protocol))
 		{
@@ -615,7 +624,7 @@ class IncomingRequest extends Request
 				break;
 			case 'PATH_INFO':
 			default:
-				$path = $_SERVER[$protocol] ?? $this->parseRequestURI();
+				$path = $this->fetchGlobal('server', $protocol) ?? $this->parseRequestURI();
 				break;
 		}
 
@@ -636,28 +645,24 @@ class IncomingRequest extends Request
 	 */
 	public function negotiate(string $type, array $supported, bool $strictMatch = false)
 	{
-		if (is_null($this->negotiate))
+		if (is_null($this->negotiator))
 		{
-			$this->negotiate = Services::negotiator($this, true);
+			$this->negotiator = Services::negotiator($this, true);
 		}
 
 		switch (strtolower($type))
 		{
 			case 'media':
-				return $this->negotiate->media($supported, $strictMatch);
-				break;
+				return $this->negotiator->media($supported, $strictMatch);
 			case 'charset':
-				return $this->negotiate->charset($supported);
-				break;
+				return $this->negotiator->charset($supported);
 			case 'encoding':
-				return $this->negotiate->encoding($supported);
-				break;
+				return $this->negotiator->encoding($supported);
 			case 'language':
-				return $this->negotiate->language($supported);
-				break;
+				return $this->negotiator->language($supported);
 		}
 
-		throw new \InvalidArgumentException($type . ' is not a valid negotiation type.');
+		throw HTTPException::forInvalidNegotiationType($type);
 	}
 
 	//--------------------------------------------------------------------
@@ -683,25 +688,28 @@ class IncomingRequest extends Request
 
 		if (isset($_SERVER['SCRIPT_NAME'][0]))
 		{
+			// strip the script name from the beginning of the URI
 			if (strpos($uri, $_SERVER['SCRIPT_NAME']) === 0)
 			{
 				$uri = (string) substr($uri, strlen($_SERVER['SCRIPT_NAME']));
-			}
-			elseif (strpos($uri, dirname($_SERVER['SCRIPT_NAME'])) === 0)
-			{
-				$uri = (string) substr($uri, strlen(dirname($_SERVER['SCRIPT_NAME'])));
-			}
+			} elseif (strpos($uri, dirname($_SERVER['SCRIPT_NAME'])) === 0)
+			// if the script is nested, strip the parent folder & script from the URI
+				if (strpos($uri, $_SERVER['SCRIPT_NAME']) > 0)
+					$uri = (string) substr($uri, strpos($uri, $_SERVER['SCRIPT_NAME']) + strlen($_SERVER['SCRIPT_NAME']));
+				elseif (strpos($uri, dirname($_SERVER['SCRIPT_NAME'])) > 0)
+					$uri = (string) substr($uri, strpos($uri, dirname($_SERVER['SCRIPT_NAME'])));
+				else
+					$uri = (string) substr($uri, strlen(dirname($_SERVER['SCRIPT_NAME'])));
 		}
 
-		// This section ensures that even on servers that require the URI to be in the query string (Nginx) a correct
+		// This section ensures that even on servers that require the URI to contain the query string (Nginx) a correct
 		// URI is found, and also fixes the QUERY_STRING getServer var and $_GET array.
 		if (trim($uri, '/') === '' && strncmp($query, '/', 1) === 0)
 		{
 			$query = explode('?', $query, 2);
 			$uri = $query[0];
 			$_SERVER['QUERY_STRING'] = $query[1] ?? '';
-		}
-		else
+		} else
 		{
 			$_SERVER['QUERY_STRING'] = $query;
 		}
@@ -732,8 +740,7 @@ class IncomingRequest extends Request
 		if (trim($uri, '/') === '')
 		{
 			return '';
-		}
-		elseif (strncmp($uri, '/', 1) === 0)
+		} elseif (strncmp($uri, '/', 1) === 0)
 		{
 			$uri = explode('?', $uri, 2);
 			$_SERVER['QUERY_STRING'] = $uri[1] ?? '';

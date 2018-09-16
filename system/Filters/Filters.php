@@ -38,6 +38,7 @@
 use CodeIgniter\Config\BaseConfig;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Filters\Exceptions\FilterException;
 
 class Filters
 {
@@ -77,6 +78,13 @@ class Filters
 	 */
 	protected $initialized = false;
 
+	/**
+	 * Any arguments to be passed to filters.
+	 *
+	 * @var array
+	 */
+	protected $arguments = [];
+
 	//--------------------------------------------------------------------
 
 	public function __construct($config, RequestInterface $request, ResponseInterface $response)
@@ -96,6 +104,7 @@ class Filters
 	 * @param string $position
 	 *
 	 * @return \CodeIgniter\HTTP\RequestInterface|\CodeIgniter\HTTP\ResponseInterface|mixed
+	 * @throws \CodeIgniter\Filters\Exceptions\FilterException
 	 */
 	public function run(string $uri, $position = 'before')
 	{
@@ -110,19 +119,19 @@ class Filters
 
 			if ( ! array_key_exists($alias, $this->config->aliases))
 			{
-				throw new \InvalidArgumentException("'{$alias}' filter must have a matching alias defined.");
+				throw FilterException::forNoAlias($alias);
 			}
 
 			$class = new $this->config->aliases[$alias]();
 
 			if ( ! $class instanceof FilterInterface)
 			{
-				throw new \RuntimeException(get_class($class) . ' must implement CodeIgniter\Filters\FilterInterface.');
+				throw FilterException::forIncorrectInterface(get_class($class));
 			}
 
 			if ($position == 'before')
 			{
-				$result = $class->before($this->request);
+				$result = $class->before($this->request, $this->arguments[$alias] ?? null);
 
 				if ($result instanceof RequestInterface)
 				{
@@ -134,10 +143,11 @@ class Filters
 				// then send it and quit.
 				if ($result instanceof ResponseInterface)
 				{
-					$result->send();
-					exit(EXIT_ERROR);
+					// short circuit - bypass any other filters
+					return $result;
 				}
 
+				// Ignore an empty result
 				if (empty($result))
 				{
 					continue;
@@ -205,6 +215,97 @@ class Filters
 	public function getFilters()
 	{
 		return $this->filters;
+	}
+
+	/**
+	 * Adds a new alias to the config file.
+	 * MUST be called prior to initialize();
+	 * Intended for use within routes files.
+	 *
+	 * @param string      $class
+	 * @param string|null $alias
+	 * @param string      $when
+	 * @param string      $section
+	 *
+	 * @return $this
+	 */
+	public function addFilter(string $class, string $alias = null, string $when = 'before', string $section = 'globals')
+	{
+		$alias = is_null($alias)
+			? md5($class)
+			: $alias;
+
+		if (! isset($this->config->{$section}))
+		{
+			$this->config->{$section} = [];
+		}
+
+		if (! isset($this->config->{$section}[$when]))
+		{
+			$this->config->{$section}[$when] = [];
+		}
+
+		$this->config->aliases[$alias] = $class;
+
+		$this->config->{$section}[$when][] = $alias;
+
+		return $this;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Ensures that a specific filter is on and enabled for the current request.
+	 *
+	 * Filters can have "arguments". This is done by placing a colon immediately
+	 * after the filter name, followed by a comma-separated list of arguments that
+	 * are passed to the filter when executed.
+	 *
+	 * @param string $name
+	 * @param string $when
+	 *
+	 * @return \CodeIgniter\Filters\Filters
+	 */
+	public function enableFilter(string $name, string $when = 'before')
+	{
+		// Get parameters and clean name
+		if (strpos($name, ':') !== false)
+		{
+			list($name, $params) = explode(':', $name);
+
+			$params = explode(',', $params);
+			array_walk($params, function(&$item){
+				$item = trim($item);
+			});
+
+			$this->arguments[$name] = $params;
+		}
+
+		if (! array_key_exists($name, $this->config->aliases))
+		{
+			throw FilterException::forNoAlias($name);
+		}
+
+		if (! isset($this->filters[$when][$name]))
+		{
+			$this->filters[$when][] = $name;
+		}
+
+		return $this;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns the arguments for a specified key, or all.
+	 *
+	 * @return array
+	 */
+	public function getArguments(string $key = null)
+	{
+		return is_null($key)
+			? $this->arguments
+			: $this->arguments[$key];
 	}
 
 	//--------------------------------------------------------------------
@@ -319,7 +420,7 @@ class Filters
 
 	protected function processFilters(string $uri = null)
 	{
-		if ( ! isset($this->config->filters) || ! count($this->config->filters))
+		if ( ! isset($this->config->filters) || ! $this->config->filters)
 		{
 			return;
 		}

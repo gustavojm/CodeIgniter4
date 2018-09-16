@@ -1,26 +1,20 @@
 <?php namespace CodeIgniter\Router;
 
-use CodeIgniter\Autoloader\MockFileLocator;
+use Tests\Support\Autoloader\MockFileLocator;
+use CodeIgniter\Router\Exceptions\RouterException;
 
 /**
  * @backupGlobals enabled
  */
 class RouteCollectionTest extends \CIUnitTestCase
 {
-
-	public function setUp()
-	{
-	}
-
-	//--------------------------------------------------------------------
-
 	public function tearDown()
 	{
 	}
 
 	//--------------------------------------------------------------------
 
-	protected function getCollector(array $config=[], array $files=[])
+	protected function getCollector(array $config=[], array $files=[], $moduleConfig = null)
 	{
 		$defaults = [
 			'Config'        => APPPATH.'Config',
@@ -34,7 +28,13 @@ class RouteCollectionTest extends \CIUnitTestCase
 		$loader = new MockFileLocator($autoload);
 		$loader->setFiles($files);
 
-		return new RouteCollection($loader);
+		if ($moduleConfig === null)
+		{
+			$moduleConfig = new \Config\Modules();
+			$moduleConfig->enabled = false;
+		}
+
+		return new RouteCollection($loader, $moduleConfig);
 	}
 
 	public function testBasicAdd()
@@ -655,7 +655,7 @@ class RouteCollectionTest extends \CIUnitTestCase
 
 		$routes->add('path/(:any)/to/(:num)', 'myController::goto/$1/$2');
 
-		$this->expectException('LogicException');
+		$this->expectException(RouterException::class);
 		$match = $routes->reverseRoute('myController::goto', 13, 'string');
 	}
 
@@ -706,6 +706,18 @@ class RouteCollectionTest extends \CIUnitTestCase
 	}
 
 	//--------------------------------------------------------------------
+
+	public function testReverseRouteMatching()
+	{
+		$routes = $this->getCollector();
+
+		$routes->get('test/(:segment)/(:segment)', 'TestController::test/$1/$2', ['as' => 'testRouter']);
+
+		$match = $routes->reverseRoute('testRouter', 1, 2);
+
+		$this->assertEquals('/test/1/2', $match);
+	}
+
 
 	public function testAddRedirect()
 	{
@@ -766,13 +778,36 @@ class RouteCollectionTest extends \CIUnitTestCase
 			'SampleSpace' => TESTPATH .'_support'
 		];
 
-		$routes = $this->getCollector($config);
-		$routes->discoverLocal(true);
+		$moduleConfig = new \Config\Modules();
+		$moduleConfig->enabled = true;
+
+		$routes = $this->getCollector($config, [], $moduleConfig);
 
 		$match = $routes->getRoutes();
 
 		$this->assertArrayHasKey('testing', $match);
 		$this->assertEquals($match['testing'], '\TestController::index');
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testDiscoverLocalAllowsConfigToOverridePackages()
+	{
+		$config = [
+			'SampleSpace' => TESTPATH .'_support'
+		];
+
+		$moduleConfig = new \Config\Modules();
+		$moduleConfig->enabled = true;
+
+		$routes = $this->getCollector($config, [], $moduleConfig);
+
+		$routes->add('testing', 'MainRoutes::index');
+
+		$match = $routes->getRoutes();
+
+		$this->assertArrayHasKey('testing', $match);
+		$this->assertEquals($match['testing'], '\MainRoutes::index');
 	}
 
 	//--------------------------------------------------------------------
@@ -786,5 +821,35 @@ class RouteCollectionTest extends \CIUnitTestCase
 		$options = $routes->getRoutesOptions('administrator');
 
 		$this->assertEquals($options, ['as' => 'admin', 'foo' => 'baz']);
+	}
+
+	public function testRouteGroupWithFilterSimple()
+	{
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$routes = $this->getCollector();
+
+		$routes->group('admin', ['filter' => 'role'], function($routes)
+		{
+			$routes->add('users', '\Users::list');
+		});
+
+		$this->assertTrue($routes->isFiltered('admin/users'));
+               $this->assertFalse($routes->isFiltered('admin/franky'));
+               $this->assertEquals('role', $routes->getFilterForRoute('admin/users'));
+	}
+
+	public function testRouteGroupWithFilterWithParams()
+	{
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$routes = $this->getCollector();
+
+		$routes->group('admin', ['filter' => 'role:admin,manager'], function($routes)
+		{
+			$routes->add('users', '\Users::list');
+		});
+
+		$this->assertTrue($routes->isFiltered('admin/users'));
+		$this->assertFalse($routes->isFiltered('admin/franky'));
+		$this->assertEquals('role:admin,manager', $routes->getFilterForRoute('admin/users'));
 	}
 }

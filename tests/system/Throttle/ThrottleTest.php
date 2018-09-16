@@ -1,6 +1,6 @@
 <?php namespace CodeIgniter\Throttle;
 
-use CodeIgniter\Cache\Handlers\MockHandler;
+use Tests\Support\Cache\Handlers\MockHandler;
 
 class ThrottleTest extends \CIUnitTestCase
 {
@@ -10,6 +10,27 @@ class ThrottleTest extends \CIUnitTestCase
 		parent::setUp();
 
 		$this->cache = new MockHandler();
+	}
+
+	public function testTokenTime()
+	{
+		$throttler = new Throttler($this->cache);
+
+		// token time should be zero to start
+		$this->assertEquals(0,$throttler->getTokenTime());
+
+		// as soon as we try a rate check, token time affected
+		$rate = 1; // allow 1 per minute
+		$cost = 1;
+
+		// after using one slot, still good
+		$throttler->check('127.0.0.1', $rate, MINUTE, $cost);
+		$this->assertEquals(0,$throttler->getTokenTime());
+
+		// after consuming a second, we have to wait
+		$throttler->check('127.0.0.1', $rate, MINUTE, $cost);
+		$this->assertEquals(1,$throttler->getTokenTime());
+
 	}
 
 	public function testIPSavesBucket()

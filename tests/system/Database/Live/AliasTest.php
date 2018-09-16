@@ -1,10 +1,12 @@
 <?php namespace CodeIgniter\Database\Live;
 
-class AliasTest extends \CIDatabaseTestCase
+use CodeIgniter\Test\CIDatabaseTestCase;
+
+class AliasTest extends CIDatabaseTestCase
 {
 	protected $refresh = true;
 
-	protected $seed = 'CITestSeeder';
+	protected $seed = 'Tests\Support\Database\Seeds\CITestSeeder';
 
 	public function testAlias()
 	{

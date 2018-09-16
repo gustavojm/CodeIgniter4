@@ -238,8 +238,8 @@ withRequest()
 -------------
 
 One of the most common times you will use the validation library is when validating
-data that was input from an HTML form. If desired, you can pass an instance of the
-current Request object and it will take all of the $_POST data and set it as the
+data that was input from an HTTP Request. If desired, you can pass an instance of the
+current Request object and it will take all of the input data and set it as the
 data to be validated::
 
     $validation->withRequest($this->request)
@@ -267,7 +267,7 @@ easily validate your data::
 
     // Joe Smith
     $validation->setRules([
-        'contacts.name' => 'required
+        'contacts.name' => 'required'
     ]);
 
     // Fred Flintsone & Wilma
@@ -670,6 +670,7 @@ is_unique               Yes         Checks if this field value exists in the dat
                                     column and value to ignore, useful when updating records to ignore itself.
 timezone                No          Fails if field does match a timezone per ``timezone_identifiers_list``
 valid_base64            No          Fails if field contains anything other than valid Base64 characters.
+valid_json              No          Fails if field does not contain a valid JSON string.
 valid_email             No          Fails if field does not contain a valid email address.
 valid_emails            No          Fails if any value provided in a comma separated list is not a valid email.
 valid_ip                No          Fails if the supplied IP is not valid. Accepts an optional parameter of ‘ipv4’ or               valid_ip[ipv6]
@@ -709,11 +710,11 @@ Rule                    Parameter   Description                                 
 uploaded                Yes         Fails if the name of the parameter does not match the name of any uploaded files.               uploaded[field_name]
 max_size                Yes         Fails if the uploaded file named in the parameter is larger than the second parameter in        max_size[field_name,2048]
                                     kilobytes (kb).
-max_dims                Yes         Files if the maximum width and height of an uploaded image exceeds values. The first parameter  max_dims[field_name,300,150]
+max_dims                Yes         Fails if the maximum width and height of an uploaded image exceed values. The first parameter   max_dims[field_name,300,150]
                                     is the field name. The second is the width, and the third is the height. Will also fail if
                                     the file cannot be determined to be an image.
-mime_in                 Yes         Fails if the file's mime type is not one listed in the parameter.                               mime_in[field_name,image/png,image/jpg]
-ext_in                  Yes         Fails if the file's extension is not one listed in the parameter.                               ext_in[field_name,png,jpg,gif]
+mime_in                 Yes         Fails if the file's mime type is not one listed in the parameters.                              mime_in[field_name,image/png,image/jpg]
+ext_in                  Yes         Fails if the file's extension is not one listed in the parameters.                              ext_in[field_name,png,jpg,gif]
 is_image                Yes         Fails if the file cannot be determined to be an image based on the mime type.                   is_image[field_name]
 ======================= =========== =============================================================================================== ========================================
 

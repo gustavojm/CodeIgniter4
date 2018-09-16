@@ -36,6 +36,8 @@
  * @filesource
  */
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\Request;
+use CodeIgniter\HTTP\ResponseInterface;
 use Config\Services;
 use Config\Cache;
 use CodeIgniter\HTTP\URI;
@@ -44,6 +46,7 @@ use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\CLIRequest;
 use CodeIgniter\Router\RouteCollectionInterface;
+use CodeIgniter\Exceptions\PageNotFoundException;
 
 /**
  * This class is the core of the framework, and will analyse the
@@ -56,19 +59,13 @@ class CodeIgniter
 	/**
 	 * The current version of CodeIgniter Framework
 	 */
-	const CI_VERSION = '4.0-dev';
+	const CI_VERSION = '4.0.0-dev';
 
 	/**
 	 * App startup time.
 	 * @var mixed
 	 */
 	protected $startTime;
-
-	/**
-	 * Amount of memory at app start.
-	 * @var int
-	 */
-	protected $startMemory;
 
 	/**
 	 * Total app execution time
@@ -136,12 +133,18 @@ class CodeIgniter
 	 */
 	protected $path;
 
+	/**
+	 * Should the Response instance "pretend"
+	 * to keep from setting headers/cookies/etc
+	 * @var bool
+	 */
+	protected $useSafeOutput = false;
+
 	//--------------------------------------------------------------------
 
 	public function __construct($config)
 	{
 		$this->startTime = microtime(true);
-		$this->startMemory = memory_get_usage(true);
 		$this->config = $config;
 	}
 
@@ -179,8 +182,12 @@ class CodeIgniter
 	 * makes all of the pieces work together.
 	 *
 	 * @param \CodeIgniter\Router\RouteCollectionInterface $routes
+	 * @param bool                                         $returnResponse
+	 *
+	 * @throws \CodeIgniter\HTTP\RedirectException
+	 * @throws \Exception
 	 */
-	public function run(RouteCollectionInterface $routes = null)
+	public function run(RouteCollectionInterface $routes = null, bool $returnResponse = false)
 	{
 		$this->startBenchmark();
 
@@ -196,12 +203,23 @@ class CodeIgniter
 		// Check for a cached page. Execution will stop
 		// if the page has been cached.
 		$cacheConfig = new Cache();
-		$this->displayCache($cacheConfig);
+		$response = $this->displayCache($cacheConfig);
+		if ($response instanceof ResponseInterface)
+		{
+			if ($returnResponse)
+			{
+				return $response;
+			}
+
+			$this->response->pretend($this->useSafeOutput)->send();
+			$this->callExit(EXIT_SUCCESS);
+		}
 
 		try
 		{
-			$this->handleRequest($routes, $cacheConfig);
-		} catch (Router\RedirectException $e)
+			return $this->handleRequest($routes, $cacheConfig, $returnResponse);
+		}
+		catch (Router\RedirectException $e)
 		{
 			$logger = Services::logger();
 			$logger->info('REDIRECTED ROUTE at ' . $e->getMessage());
@@ -220,20 +238,59 @@ class CodeIgniter
 	//--------------------------------------------------------------------
 
 	/**
+	 * Set our Response instance to "pretend" mode so that things like
+	 * cookies and headers are not actually sent, allowing PHP 7.2+ to
+	 * not complain when ini_set() function is used.
+	 *
+	 * @param bool $safe
+	 *
+	 * @return $this
+	 */
+	public function useSafeOutput(bool $safe = true)
+	{
+		$this->useSafeOutput = $safe;
+
+		return $this;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
 	 * Handles the main request logic and fires the controller.
 	 *
 	 * @param \CodeIgniter\Router\RouteCollectionInterface $routes
 	 * @param                                              $cacheConfig
+	 * @param bool                                         $returnResponse
+	 *
+	 * @return \CodeIgniter\HTTP\RequestInterface|\CodeIgniter\HTTP\Response|\CodeIgniter\HTTP\ResponseInterface|mixed
+	 * @throws \CodeIgniter\Filters\Exceptions\FilterException
 	 */
-	protected function handleRequest(RouteCollectionInterface $routes = null, $cacheConfig)
+	protected function handleRequest(RouteCollectionInterface $routes = null, $cacheConfig, bool $returnResponse = false)
 	{
-		$this->tryToRouteIt($routes);
+		$routeFilter = $this->tryToRouteIt($routes);
 
 		// Run "before" filters
 		$filters = Services::filters();
+
+		// If any filters were specified within the routes file,
+		// we need to ensure it's active for the current request (before only)
+		if (! is_null($routeFilter))
+		{
+			$filters->enableFilter($routeFilter, 'before');
+		}
+
 		$uri = $this->request instanceof CLIRequest ? $this->request->getPath() : $this->request->uri->getPath();
 
-		$filters->run($uri, 'before');
+		$possibleRedirect = $filters->run($uri, 'before');
+		if($possibleRedirect instanceof RedirectResponse)
+		{
+			return $possibleRedirect;
+		}
+		// If a Response instance is returned, the Response will be sent back to the client and script execution will stop
+		if($possibleRedirect instanceof ResponseInterface)
+		{
+			return $possibleRedirect->send();
+		}
 
 		$returned = $this->startController();
 
@@ -256,6 +313,11 @@ class CodeIgniter
 		// Handle any redirects
 		if ($returned instanceof RedirectResponse)
 		{
+			if ($returnResponse)
+			{
+				return $returned;
+			}
+
 			$this->callExit(EXIT_SUCCESS);
 		}
 
@@ -278,12 +340,17 @@ class CodeIgniter
 
 		unset($uri);
 
-		$this->sendResponse();
+		if (! $returnResponse)
+		{
+			$this->sendResponse();
+		}
 
 		//--------------------------------------------------------------------
 		// Is there a post-system event?
 		//--------------------------------------------------------------------
 		Events::trigger('post_system');
+
+		return $this->response;
 	}
 
 	//--------------------------------------------------------------------
@@ -358,12 +425,34 @@ class CodeIgniter
 	//--------------------------------------------------------------------
 
 	/**
+	 * Sets a Request object to be used for this request.
+	 * Used when running certain tests.
+	 *
+	 * @param \CodeIgniter\HTTP\Request $request
+	 *
+	 * @return \CodeIgniter\CodeIgniter
+	 */
+	public function setRequest(Request $request)
+	{
+		$this->request = $request;
+
+		return $this;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
 	 * Get our Request object, (either IncomingRequest or CLIRequest)
 	 * and set the server protocol based on the information provided
 	 * by the server.
 	 */
 	protected function getRequestObject()
 	{
+		if ($this->request instanceof Request)
+		{
+			return;
+		}
+
 		if (is_cli() && ! (ENVIRONMENT == 'testing'))
 		{
 			$this->request = Services::clirequest($this->config);
@@ -371,7 +460,8 @@ class CodeIgniter
 		else
 		{
 			$this->request = Services::request($this->config);
-			$this->request->setProtocolVersion($_SERVER['SERVER_PROTOCOL']);
+			// guess at protocol if needed
+			$this->request->setProtocolVersion($_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1');
 		}
 	}
 
@@ -453,8 +543,9 @@ class CodeIgniter
 			}
 
 			$output = $this->displayPerformanceMetrics($output);
-			$this->response->setBody($output)->send();
-			$this->callExit(EXIT_SUCCESS);
+			$this->response->setBody($output);
+
+			return $this->response;
 		};
 	}
 
@@ -469,7 +560,7 @@ class CodeIgniter
 	 */
 	public static function cache(int $time)
 	{
-		self::$cacheTTL = (int) $time;
+		self::$cacheTTL = $time;
 	}
 
 	//--------------------------------------------------------------------
@@ -507,7 +598,6 @@ class CodeIgniter
 		return [
 			'startTime'		 => $this->startTime,
 			'totalTime'		 => $this->totalTime,
-			'startMemory'	 => $this->startMemory
 		];
 	}
 
@@ -572,6 +662,8 @@ class CodeIgniter
 	 *
 	 * @param RouteCollectionInterface $routes  An collection interface to use in place
 	 *                                          of the config file.
+	 *
+	 * @return array
 	 */
 	protected function tryToRouteIt(RouteCollectionInterface $routes = null)
 	{
@@ -601,6 +693,8 @@ class CodeIgniter
 		}
 
 		$this->benchmark->stop('routing');
+
+		return $this->router->getFilter();
 	}
 
 	//--------------------------------------------------------------------
@@ -660,19 +754,19 @@ class CodeIgniter
 		// No controller specified - we don't know what to do now.
 		if (empty($this->controller))
 		{
-			throw new PageNotFoundException('Controller is empty.');
+			throw PageNotFoundException::forEmptyController();
 		}
 
 		// Try to autoload the class
 		if ( ! class_exists($this->controller, true) || $this->method[0] === '_')
 		{
-			throw new PageNotFoundException('Controller or its method is not found.');
+			throw PageNotFoundException::forControllerNotFound($this->controller, $this->method);
 		}
 		else if ( ! method_exists($this->controller, '_remap') &&
 				! is_callable([$this->controller, $this->method], false)
 		)
 		{
-			throw new PageNotFoundException('Controller method is not found.');
+			throw PageNotFoundException::forMethodNotFound($this->method);
 		}
 	}
 
@@ -685,7 +779,8 @@ class CodeIgniter
 	 */
 	protected function createController()
 	{
-		$class = new $this->controller($this->request, $this->response);
+		$class = new $this->controller();
+		$class->initController($this->request, $this->response, Services::logger());
 
 		$this->benchmark->stop('controller_constructor');
 
@@ -755,7 +850,7 @@ class CodeIgniter
 		}
 
 		// Display 404 Errors
-		$this->response->setStatusCode(404);
+		$this->response->setStatusCode($e->getCode());
 
 		if (ENVIRONMENT !== 'testing')
 		{
@@ -773,7 +868,7 @@ class CodeIgniter
 			}
 		}
 
-		throw new PageNotFoundException(lang('HTTP.pageNotFound'));
+		throw PageNotFoundException::forPageNotFound($e->getMessage());
 	}
 
 	//--------------------------------------------------------------------
@@ -788,7 +883,12 @@ class CodeIgniter
 	protected function gatherOutput($cacheConfig = null, $returned = null)
 	{
 		$this->output = ob_get_contents();
-		ob_end_clean();
+		// If buffering is not null.
+		// Clean (erase) the output buffer and turn off output buffering
+		if (ob_get_length())
+		{
+			ob_end_clean();
+		}
 
 		// If the controller returned a response object,
 		// we need to grab the body from it so it can
@@ -875,7 +975,7 @@ class CodeIgniter
 	 */
 	protected function sendResponse()
 	{
-		$this->response->send();
+		$this->response->pretend($this->useSafeOutput)->send();
 	}
 
 	//--------------------------------------------------------------------

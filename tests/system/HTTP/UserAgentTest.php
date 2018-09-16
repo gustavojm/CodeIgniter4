@@ -14,6 +14,8 @@ class UserAgent_test extends \CIUnitTestCase {
 
 	public function setUp()
 	{
+		parent::setUp();
+
 		// set a baseline user agent
 		$_SERVER['HTTP_USER_AGENT'] = $this->_user_agent;
 
@@ -91,6 +93,17 @@ class UserAgent_test extends \CIUnitTestCase {
 		$this->assertFalse($this->agent->isRobot());
 		$this->assertTrue($this->agent->isMobile());
 		$this->assertTrue($this->agent->isMobile('android'));
+	}
+
+	public function testParseBot()
+	{
+		$new_agent = 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)';
+		$this->agent->parse($new_agent);
+
+		$this->assertFalse($this->agent->isBrowser());
+		$this->assertTrue($this->agent->isRobot());
+		$this->assertFalse($this->agent->isRobot('Bob'));
+		$this->assertFalse($this->agent->isMobile());
 	}
 
 }

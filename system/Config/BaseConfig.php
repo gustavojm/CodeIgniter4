@@ -54,16 +54,22 @@ class BaseConfig
 	 *
 	 * @var array
 	 */
-	protected $registrars;
+	public static $registrars = [];
+
+	protected static $didDiscovery = false;
+
+	protected static $moduleConfig;
 
 	/**
 	 * Will attempt to get environment variables with names
 	 * that match the properties of the child class.
-	 * 
+	 *
 	 * The "shortPrefix" is the lowercase-only config class name.
 	 */
 	public function __construct()
 	{
+		static::$moduleConfig = config('Modules');
+
 		$properties = array_keys(get_object_vars($this));
 		$prefix = get_class($this);
 		$slashAt = strrpos($prefix, '\\');
@@ -78,12 +84,18 @@ class BaseConfig
 					if ($value = $this->getEnvValue("{$property}.{$key}", $prefix, $shortPrefix))
 					{
 						if (is_null($value))
+						{
 							continue;
+						}
 
 						if ($value === 'false')
+						{
 							$value = false;
+						}
 						elseif ($value === 'true')
+						{
 							$value = true;
+						}
 
 						$this->$property[$key] = $value;
 					}
@@ -94,19 +106,30 @@ class BaseConfig
 				if (($value = $this->getEnvValue($property, $prefix, $shortPrefix)) !== false)
 				{
 					if (is_null($value))
+					{
 						continue;
+					}
 
 					if ($value === 'false')
+					{
 						$value = false;
+					}
 					elseif ($value === 'true')
+					{
 						$value = true;
+					}
 
-					$this->$property = $value;
+					$this->$property = is_bool($value)
+						? $value
+						: trim($value, '\'"');
 				}
 			}
 		}
 
-		$this->registerProperties();
+		if (defined('ENVIRONMENT') && ENVIRONMENT != 'testing')
+		{
+			$this->registerProperties();
+		}
 	}
 
 	//--------------------------------------------------------------------
@@ -123,7 +146,8 @@ class BaseConfig
 	protected function getEnvValue(string $property, string $prefix, string $shortPrefix)
 	{
 		$shortPrefix = ltrim( $shortPrefix, '\\' );
-		switch (true) {
+		switch (true)
+		{
 			case array_key_exists( "{$shortPrefix}.{$property}", $_ENV ):
 				return $_ENV["{$shortPrefix}.{$property}"];
 				break;
@@ -150,17 +174,27 @@ class BaseConfig
 	 */
 	protected function registerProperties()
 	{
-		if (empty($this->registrars))
+		if (! static::$moduleConfig->shouldDiscover('registrars'))
+		{
 			return;
+		}
+
+		if (! static::$didDiscovery)
+		{
+			$locator = \Config\Services::locator();
+			static::$registrars = $locator->search('Config/Registrar.php');
+		}
 
 		$shortName = (new \ReflectionClass($this))->getShortName();
 
 		// Check the registrar class for a method named after this class' shortName
-		foreach ($this->registrars as $callable)
+		foreach (static::$registrars as $callable)
 		{
 			// ignore non-applicable registrars
 			if ( ! method_exists($callable, $shortName))
+			{
 				continue;
+			}
 
 			$properties = $callable::$shortName();
 

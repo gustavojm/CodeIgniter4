@@ -38,7 +38,7 @@
  */
 
 use Config\Mimes;
-
+use Psr\Log\LoggerAwareTrait;
 
 /**
  * CodeIgniter Email Class
@@ -53,6 +53,17 @@ use Config\Mimes;
  */
 class Email
 {
+	use LoggerAwareTrait;
+	/**
+	 * @var string
+	 */
+	public $fromEmail;
+
+	/**
+	 * @var string
+	 */
+	public $fromName;
+
 	/**
 	 * Used as the User-Agent and X-Mailer headers' value.
 	 *
@@ -377,6 +388,12 @@ class Email
 	 */
 	protected static $func_overload;
 
+	/**
+	 * Logger instance to record error messages and awarnings.
+	 * @var \PSR\Log\LoggerInterface
+	 */
+	protected $logger;
+
 	//--------------------------------------------------------------------
 
 	/**
@@ -400,7 +417,7 @@ class Email
 	/**
 	 * Initialize preferences
 	 *
-	 * @param array $config
+	 * @param array|\Config\Email $config
 	 *
 	 * @return Email
 	 */
@@ -408,19 +425,24 @@ class Email
 	{
 		$this->clear();
 
+		if ($config instanceof \Config\Email)
+		{
+			$config = get_object_vars($config);
+		}
+
 		foreach (get_class_vars(get_class($this)) as $key => $value)
 		{
-			if (isset($this->$key) && isset($config->$key))
+			if (property_exists($this, $key) && isset($config[$key]))
 			{
 				$method = 'set'.ucfirst($key);
 
 				if (method_exists($this, $method))
 				{
-					$this->$method($config->$key);
+					$this->$method($config[$key]);
 				}
 				else
 				{
-					$this->$key = $config->$key;
+					$this->$key = $config[$key];
 				}
 			}
 		}
@@ -1208,7 +1230,7 @@ class Email
 		}
 
 		// Put our markers back
-		if (count($unwrap) > 0)
+		if ($unwrap)
 		{
 			foreach ($unwrap as $key => $val)
 			{
@@ -1761,6 +1783,11 @@ class Email
 	 */
 	public function send($autoClear = true)
 	{
+		if (! isset($this->headers['From']) && ! empty($this->fromEmail))
+		{
+			$this->setFrom($this->fromEmail, $this->fromName);
+		}
+
 		if (! isset($this->headers['From']))
 		{
 			$this->setErrorMessage(lang('email.noFrom'));
@@ -1902,10 +1929,18 @@ class Email
 
 		$protocol = $this->getProtocol();
 		$method   = 'sendWith'.ucfirst($protocol);
-		if (! $this->$method())
+		try
+		{
+			$success = $this->$method();
+		} catch(\ErrorException $e)
+		{
+			$success = false;
+			$this->logger->error('Email: '.$method.' throwed '.$e->getMessage());
+		}
+
+		if (! $success)
 		{
 			$this->setErrorMessage(lang('email.sendFailure'.($protocol === 'mail' ? 'PHPMail' : ucfirst($protocol))));
-
 			return false;
 		}
 

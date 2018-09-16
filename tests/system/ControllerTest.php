@@ -1,7 +1,10 @@
 <?php namespace CodeIgniter;
 
-use CodeIgniter\HTTP\UserAgent;
+use CodeIgniter\Log\Logger;
 use Config\App;
+use CodeIgniter\HTTP\UserAgent;
+use Tests\Support\Config\MockLogger;
+use Tests\Support\MockCodeIgniter;
 
 /**
  * Exercise our core Controller class.
@@ -34,16 +37,21 @@ class ControllerTest extends \CIUnitTestCase
 	 * @var \CodeIgniter\HTTP\Response
 	 */
 	protected $response;
+	/**
+	 * @var \Psr\Log\LoggerInterface
+	 */
+	protected $logger;
 
 	//--------------------------------------------------------------------
 
 	public function setUp()
 	{
-		Services::reset();
+		parent::setUp();
 
 		$this->config = new App();
 		$this->request = new \CodeIgniter\HTTP\IncomingRequest($this->config, new \CodeIgniter\HTTP\URI('https://somwhere.com'), null, new UserAgent());
 		$this->response = new \CodeIgniter\HTTP\Response($this->config);
+		$this->logger = \Config\Services::logger();
 		$this->codeigniter = new MockCodeIgniter($this->config);
 	}
 
@@ -52,7 +60,8 @@ class ControllerTest extends \CIUnitTestCase
 	public function testConstructor()
 	{
 		// make sure we can instantiate one
-		$this->controller = new Controller($this->request, $this->response);
+		$this->controller = new Controller();
+		$this->controller->initController($this->request, $this->response, $this->logger);
 		$this->assertInstanceOf(Controller::class, $this->controller);
 	}
 
@@ -61,11 +70,12 @@ class ControllerTest extends \CIUnitTestCase
 		$original = $_SERVER;
 		$_SERVER = ['HTTPS' => 'on'];
 		// make sure we can instantiate one
-		$this->controller = new Class($this->request, $this->response) extends Controller
+		$this->controller = new Class() extends Controller
 		{
-
 			protected $forceHTTPS = 1;
 		};
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
 		$this->assertInstanceOf(Controller::class, $this->controller);
 		$_SERVER = $original; // restore so code coverage doesn't break
 	}
@@ -73,14 +83,18 @@ class ControllerTest extends \CIUnitTestCase
 	//--------------------------------------------------------------------
 	public function testCachePage()
 	{
-		$this->controller = new Controller($this->request, $this->response);
+		$this->controller = new Controller();
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
 		$this->assertNull($this->controller->cachePage(10));
 	}
 
 	public function testValidate()
 	{
 		// make sure we can instantiate one
-		$this->controller = new Controller($this->request, $this->response);
+		$this->controller = new Controller();
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
 		// and that we can attempt validation, with no rules
 		$this->assertFalse($this->controller->validate([]));
 	}
@@ -88,11 +102,12 @@ class ControllerTest extends \CIUnitTestCase
 	//--------------------------------------------------------------------
 	public function testHelpers()
 	{
-		$this->controller = new Class($this->request, $this->response) extends Controller
+		$this->controller = new Class() extends Controller
 		{
-
 			protected $helpers = ['cookie', 'text'];
 		};
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
 		$this->assertInstanceOf(Controller::class, $this->controller);
 	}
 

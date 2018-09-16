@@ -40,9 +40,10 @@ characters so that it can be used safely::
 	<input type="text" name="myfield" value="<?= esc($string); ?>" />
 
 .. note:: If you use any of the form helper functions listed on this page,
+        and you pass values as an associative array,
 	the form values will be automatically escaped, so there is no need
 	to call this function. Use it only if you are creating your own
-	form elements.
+	form elements, which you would pass as strings.
 
 Available Functions
 ===================
@@ -52,7 +53,7 @@ The following functions are available:
 .. php:function:: form_open([$action = ''[, $attributes = ''[, $hidden = array()]]])
 
 	:param	string	$action: Form action/target URI string
-    	:param	array	$attributes: HTML attributes
+    	:param	mixed	$attributes: HTML attributes, as an array or escaped string
     	:param	array	$hidden: An array of hidden fields' definitions
     	:returns:	An HTML form opening tag
     	:rtype:	string
@@ -106,15 +107,15 @@ The following functions are available:
 				<input type="hidden" name="username" value="Joe" />
 				<input type="hidden" name="member_id" value="234" />
 
-.. php:function:: form_open_multipart([$action = ''[, $attributes = array()[, $hidden = array()]]])
+.. php:function:: form_open_multipart([$action = ''[, $attributes = ''[, $hidden = array()]]])
 
 	:param	string	$action: Form action/target URI string
-    	:param	array	$attributes: HTML attributes
+    	:param	mixed	$attributes: HTML attributes, as an array or escaped string
     	:param	array	$hidden: An array of hidden fields' definitions
     	:returns:	An HTML multipart form opening tag
     	:rtype:	string
 
-    	This function is absolutely identical to :php:func:`form_open()` above,
+    	This function is identical to :php:func:`form_open()` above,
 	except that it adds a *multipart* attribute, which is necessary if you
 	would like to use the form to upload files with.
 
@@ -289,7 +290,7 @@ The following functions are available:
     	contain the name of the field, the second parameter will contain an
     	associative array of options, and the third parameter will contain the
     	value you wish to be selected. You can also pass an array of multiple
-    	items through the third parameter, and CodeIgniter will create a
+    	items through the third parameter, and the helper will create a
     	multiple select for you.
 
     	Example::
@@ -673,47 +674,3 @@ The following functions are available:
 		functions to work. This is because if a Form Validation object is
 		defined, the control for ``set_*()`` is handed over to a method of the
 		class instead of the generic helper function.
-
-.. php:function:: form_error([$field = ''[, $prefix = ''[, $suffix = '']]])
-
-	:param	string	$field:	Field name
-	:param	string	$prefix: Error opening tag
-    	:param	string	$suffix: Error closing tag
-    	:returns:	HTML-formatted form validation error message(s)
-    	:rtype:	string
-
-    	Returns a validation error message from the :doc:`Form Validation Library
-    	<../libraries/validation>`, associated with the specified field name.
-    	You can optionally specify opening and closing tag(s) to put around the error
-    	message.
-
-    	Example::
-
-		// Assuming that the 'username' field value was incorrect:
-		echo form_error('myfield', '<div class="error">', '</div>');
-
-		// Would produce: <div class="error">Error message associated with the "username" field.</div>
-
-.. php:function:: validation_errors([$prefix = ''[, $suffix = '']])
-
-	:param	string	$prefix: Error opening tag
-    	:param	string	$suffix: Error closing tag
-    	:returns:	HTML-formatted form validation error message(s)
-    	:rtype:	string
-
-    	Similarly to the :php:func:`form_error()` function, returns all validation
-	error messages produced by the :doc:`Form Validation Library
-    	<../libraries/validation>`, with optional opening and closing tags
-    	around each of the messages.
-
-    	Example::
-
-		echo validation_errors('<span class="error">', '</span>');
-
-		/*
-			Would produce, e.g.:
-
-			<span class="error">The "email" field doesn't contain a valid e-mail address!</span>
-			<span class="error">The "password" field doesn't match the "repeat_password" field!</span>
-
-		 */

@@ -36,6 +36,7 @@
  * @filesource
  */
 use CodeIgniter\Autoloader\FileLocator;
+use CodeIgniter\Router\Exceptions\RouterException;
 
 /**
  * Class RouteCollection
@@ -187,34 +188,37 @@ class RouteCollection implements RouteCollectionInterface
 	protected $currentOptions = null;
 
 	/**
-	 * Determines whether locally specified, PSR4
-	 * compatible code is automatically scanned
-	 * for addition routes in a {namespace}/Config/Routes.php file.
-	 *
-	 * @var bool
-	 */
-	protected $discoverLocal = false;
-
-	/**
 	 * A little performance booster.
 	 * @var bool
 	 */
 	protected $didDiscover = false;
+
+	/**
+	 * @var \CodeIgniter\Autoloader\FileLocator
+	 */
 	protected $fileLocator;
+
+	/**
+	 * @var \Config\Modules
+	 */
+	protected $moduleConfig;
 
 	//--------------------------------------------------------------------
 
 	/**
 	 * Constructor
 	 *
-	 * @param FileLocator $locator
+	 * @param FileLocator    $locator
+	 * @param Config/Modules $moduleConfig
 	 */
-	public function __construct(FileLocator $locator)
+	public function __construct(FileLocator $locator, $moduleConfig)
 	{
 		// Get HTTP verb
 		$this->HTTPVerb = strtolower($_SERVER['REQUEST_METHOD'] ?? 'cli');
 
 		$this->fileLocator = $locator;
+
+		$this->moduleConfig = $moduleConfig;
 	}
 
 	//--------------------------------------------------------------------
@@ -373,32 +377,13 @@ class RouteCollection implements RouteCollectionInterface
 	//--------------------------------------------------------------------
 
 	/**
-	 * If true, will attempt to auto-discover new route files
-	 * based on any PSR4 namespaces that have been set
-	 * in Config/Autoload.php.
-	 *
-	 * @param bool $discover
-	 *
-	 * @return $this
-	 */
-	public function discoverLocal(bool $discover)
-	{
-		$this->discoverLocal = $discover;
-
-		return $this;
-	}
-
-	//--------------------------------------------------------------------
-
-	/**
 	 * Will attempt to discover any additional routes, either through
 	 * the local PSR4 namespaces, or through selected Composer packages.
 	 * (Composer coming soon...)
 	 */
 	protected function discoverRoutes()
 	{
-		if ($this->didDiscover)
-			return;
+		if ($this->didDiscover) return;
 
 		// We need this var in local scope
 		// so route files can access it.
@@ -407,7 +392,7 @@ class RouteCollection implements RouteCollectionInterface
 		/*
 		 * Discover Local Files
 		 */
-		if ($this->discoverLocal === true)
+		if ($this->moduleConfig->shouldDiscover('routes'))
 		{
 			$files = $this->fileLocator->search('Config/Routes.php');
 
@@ -717,7 +702,7 @@ class RouteCollection implements RouteCollectionInterface
 
 		$callback = array_pop($params);
 
-		if (count($params) && is_array($params[0]))
+		if ($params && is_array($params[0]))
 		{
 			$this->currentOptions = array_shift($params);
 		}
@@ -1106,6 +1091,46 @@ class RouteCollection implements RouteCollectionInterface
 	//--------------------------------------------------------------------
 
 	/**
+	 * Checks a route (using the "from") to see if it's filtered or not.
+	 *
+	 * @param string $search
+	 *
+	 * @return bool
+	 */
+	public function isFiltered(string $search): bool
+	{
+		return isset($this->routesOptions[$search]['filter']);
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns the filter that should be applied for a single route, along
+	 * with any parameters it might have. Parameters are found by splitting
+	 * the parameter name on a colon to separate the filter name from the parameter list,
+	 * and the splitting the result on commas. So:
+	 *
+	 *    'role:admin,manager'
+	 *
+	 * has a filter of "role", with parameters of ['admin', 'manager'].
+	 *
+	 * @param string $search
+	 *
+	 * @return string
+	 */
+	public function getFilterForRoute(string $search): string
+	{
+		if (! $this->isFiltered($search))
+		{
+			return '';
+		}
+
+		return $this->routesOptions[$search]['filter'];
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
 	 * Given a
 	 *
 	 * @param string     $from
@@ -1129,13 +1154,15 @@ class RouteCollection implements RouteCollectionInterface
 		{
 			// Ensure that the param we're inserting matches
 			// the expected param type.
+			$pos = strpos($from, $pattern);
+
 			if (preg_match("|{$pattern}|", $params[$index]))
 			{
-				$from = str_replace($pattern, $params[$index], $from);
+				$from = substr_replace($from, $params[$index], $pos, strlen($pattern));
 			}
 			else
 			{
-				throw new \LogicException('A parameter does not match the expected type.');
+				throw RouterException::forInvalidParameterType();
 			}
 		}
 
@@ -1170,7 +1197,7 @@ class RouteCollection implements RouteCollectionInterface
 		$options = array_merge((array)$this->currentOptions, (array)$options);
 
 		// Hostname limiting?
-		if (isset($options['hostname']) && ! empty($options['hostname']))
+		if (! empty($options['hostname']))
 		{
 			// @todo determine if there's a way to whitelist hosts?
 			if (strtolower($_SERVER['HTTP_HOST']) != strtolower($options['hostname']))
@@ -1229,13 +1256,23 @@ class RouteCollection implements RouteCollectionInterface
 			$to = '\\' . ltrim($to, '\\');
 		}
 
-		$this->routesOptions[$from] = $options;
-
 		$name = $options['as'] ?? $from;
+
+		// Don't overwrite any existing 'froms' so that auto-discovered routes
+		// do not overwrite any application/Config/Routes settings. The app
+		// routes should always be the "source of truth".
+		// this works only because discovered routes are added just prior
+		// to attempting to route the request.
+		if (isset($this->routes[$verb][$name]))
+		{
+			return;
+		}
 
 		$this->routes[$verb][$name] = [
 			'route' => [$from => $to]
 		];
+
+		$this->routesOptions[$from] = $options;
 
 		// Is this a redirect?
 		if (isset($options['redirect']) && is_numeric($options['redirect']))
