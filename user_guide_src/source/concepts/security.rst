@@ -6,11 +6,11 @@ We take security seriously.
 CodeIgniter incorporates a number of features and techniques to either enforce
 good security practices, or to enable you to do so easily.
 
-We respect the `Open Web Application Security Project (OWASP) <https://www.owasp.org>`_
+We respect the `Open Web Application Security Project (OWASP) <https://owasp.org>`_
 and follow their recommendations as much as possible.
 
 The following comes from
-`OWASP Top Ten Cheat Sheet <https://www.owasp.org/index.php/OWASP_Top_Ten_Cheat_Sheet>`_,
+`OWASP Top Ten Cheat Sheet <https://owasp.org/www-project-top-ten/>`_,
 identifying the top vulnerabilities for web applications.
 For each, we provide a brief description, the OWASP recommendations, and then
 the CodeIgniter provisions to address the problem.
@@ -34,7 +34,7 @@ OWASP recommendations
 CodeIgniter provisions
 ----------------------
 
-- `HTTP library <../libraries/message.html>`_ provides for input field filtering & content metadata
+- `HTTP library <../incoming/incomingrequest.html>`_ provides for input field filtering & content metadata
 - Form validation library
 
 *********************************************
@@ -57,7 +57,7 @@ CodeIgniter provisions
 ----------------------
 
 - `Session <../libraries/sessions.html>`_ library
-- `HTTP library <../libraries/message.html>`_ provides for CSRF validation
+- `HTTP library <../incoming/incomingrequest.html>`_ provides for CSRF validation
 - Easy to add third party authentication
 
 *****************************
@@ -162,7 +162,7 @@ CodeIgniter provisions
 ----------------------
 
 - Public folder, with application and system outside
-- `HTTP library <../libraries/message.html>`_ provides for CSRF validation
+- `HTTP library <../incoming/incomingrequest.html>`_ provides for CSRF validation
 
 ************************************
 A8 Cross Site Request Forgery (CSRF)
@@ -181,7 +181,7 @@ OWASP recommendations
 CodeIgniter provisions
 ----------------------
 
-- `HTTP library <../libraries/message.html>`_ provides for CSRF validation
+- `HTTP library <../incoming/incomingrequest.html>`_ provides for CSRF validation
 
 **********************************************
 A9 Using Components with Known Vulnerabilities
@@ -217,6 +217,5 @@ OWASP recommendations
 CodeIgniter provisions
 ----------------------
 
-- `HTTP library <../libraries/message.html>`_ provides for ...
+- `HTTP library <../incoming/incomingrequest.html>`_ provides for ...
 - `Session <../libraries/sessions.html>`_ library provides flashdata
-

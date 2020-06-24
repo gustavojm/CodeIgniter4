@@ -7,15 +7,17 @@ centered around a specific subject, and can be thought of as mini-applications w
 of the standard file types within the framework are supported, like controllers, models, views, config files, helpers,
 language files, etc. Modules may contain as few, or as many, of these as you like.
 
-.. contents:: Page Contents
+.. contents::
+    :local:
+    :depth: 2
 
 ==========
 Namespaces
 ==========
 
 The core element of the modules functionality comes from the :doc:`PSR4-compatible autoloading </concepts/autoloader>`
-that CodeIgniter uses. While any code can use the PSR4 autoloader and namespaces, the only way to take full advantage of
-modules is to namespace your code and add it to **application/Config/Autoload.php**, in the ``psr4`` section.
+that CodeIgniter uses. While any code can use the PSR4 autoloader and namespaces, the primary way to take full advantage of
+modules is to namespace your code and add it to **app/Config/Autoload.php**, in the ``psr4`` section.
 
 For example, let's say we want to keep a simple blog module that we can re-use between applications. We might create
 folder with our company name, Acme, to store all of our modules within. We will put it right alongside our **application**
@@ -28,16 +30,18 @@ directory in the main project root::
     /tests
     /writable
 
-Open **application/Config/Autoload.php** and add the **Acme** namespace to the ``psr4`` array property::
+Open **app/Config/Autoload.php** and add the **Acme** namespace to the ``psr4`` array property::
 
-    public $psr4 = [
-        'Acme' => ROOTPATH.'acme'
+    $psr4 = [
+        'Config'        => APPPATH . 'Config',
+        APP_NAMESPACE   => APPPATH,                // For custom namespace
+        'App'           => APPPATH,                // To ensure filters, etc still found,
+        'Acme'          => ROOTPATH.'acme'
     ];
 
-Now that this is setup we can access any file within the **acme** folder through the ``Acme`` namespace. This alone
-takes care of 80% of what is needed for modules to work, so you should be sure to familiarize yourself within namespaces
-and become comfortable with their use. A number of the file types will be scanned for automatically through all defined
-namespaces here, making this crucial to working with modules at all.
+Now that this is set up, we can access any file within the **acme** folder through the ``Acme`` namespace. This alone
+takes care of 80% of what is needed for modules to work, so you should be sure to familiarize yourself with namespaces
+and become comfortable with their use. Several file types will be scanned for automatically through all defined namespaces - a crucial ingredient for working with modules.
 
 A common directory structure within a module will mimic the main application folder::
 
@@ -67,20 +71,17 @@ Many times, you will need to specify the full namespace to files you want to inc
 configured to make integrating modules into your applications simpler by automatically discovering many different
 file types, including:
 
-- :doc:`Events </general/events>`
-- :ref:`registrars`
-- :doc:`Route files </general/routing>`
+- :doc:`Events </extending/events>`
+- :doc:`Registrars </general/configuration>`
+- :doc:`Route files </incoming/routing>`
 - :doc:`Services </concepts/services>`
 
-This is configured in the file **application/Config/Modules.php**.
+This is configured in the file **app/Config/Modules.php**.
 
-The auto-discovery system works by scanning any psr4 namespaces that have been defined within **Config/Autoload.php**
-for familiar directories/files.
+The auto-discovery system works by scanning for particular directories and files within psr4 namespaces that have been defined in **Config/Autoload.php**.
 
-When at the **acme** namespace above, we would need to make one small adjustment to make it so the files could be found:
-each "module" within the namespace would have to have it's own namespace defined there. **Acme** would be changed
-to **Acme\Blog**. Once  your module folder has been defined, the discover process would look for a Routes file, for example,
-at **/acme/Blog/Config/Routes.php**, just as if it was another application.
+To make auto-discovery work for our **Blog** namespace, we need to make one small adjustment.
+**Acme** needs to be changed to **Acme\\Blog** because each "module" within the namespace needs to be fully defined. Once your module folder path is defined, the discovery process would look for discoverable items on that path and should, for example, find the routes file at **/acme/Blog/Config/Routes.php**.
 
 Enable/Disable Discover
 =======================
@@ -94,6 +95,17 @@ Specify Discovery Items
 With the **$activeExplorers** option, you can specify which items are automatically discovered. If the item is not
 present, then no auto-discovery will happen for that item, but the others in the array will still be discovered.
 
+Discovery and Composer
+======================
+
+Packages that were installed via Composer will also be discovered by default. This only requires that the namespace
+that Composer knows about is a PSR4 namespace. PSR0 namespaces will not be detected.
+
+If you do not want all of Composer's known directories to be scanned when locating files, you can turn this off
+by editing the ``$discoverInComposer`` variable in ``Config\Modules.php``::
+
+    public $discoverInComposer = false;
+
 ==================
 Working With Files
 ==================
@@ -105,7 +117,7 @@ guide, but is being reproduced here so that it's easier to grasp how all of the 
 Routes
 ======
 
-By default, :doc:`routes </general/routing>` are automatically scanned for within modules. If can be turned off in
+By default, :doc:`routes </incoming/routing>` are automatically scanned for within modules. It can be turned off in
 the **Modules** config file, described above.
 
 .. note:: Since the files are being included into the current scope, the ``$routes`` instance is already defined for you.
@@ -114,7 +126,7 @@ the **Modules** config file, described above.
 Controllers
 ===========
 
-Controllers outside of the main **application/Controllers** directory cannot be automatically routed by URI detection,
+Controllers outside of the main **app/Controllers** directory cannot be automatically routed by URI detection,
 but must be specified within the Routes file itself::
 
     // Routes.php
@@ -182,6 +194,6 @@ Models are always instantiated by their fully-qualified class name, so no specia
 Views
 =====
 
-Views can be loaded using the class namespace as described in the :doc:`views </general/views>` documentation::
+Views can be loaded using the class namespace as described in the :doc:`views </outgoing/views>` documentation::
 
     echo view('Acme\Blog\Views\index');

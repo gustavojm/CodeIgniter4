@@ -1,25 +1,26 @@
 <?php
 
+use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\Test\FeatureResponse;
-use CodeIgniter\HTTP\RedirectResponse;
 
-class FeatureResponseTest extends CIUnitTestCase
+class FeatureResponseTest extends \CodeIgniter\Test\CIUnitTestCase
 {
+
 	/**
 	 * @var FeatureResponse
 	 */
 	protected $feature;
+
 	/**
 	 * @var Response
 	 */
 	protected $response;
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 	}
-
 
 	public function testIsOKFailsSmall()
 	{
@@ -43,6 +44,15 @@ class FeatureResponseTest extends CIUnitTestCase
 		$this->response->setStatusCode(200);
 
 		$this->assertTrue($this->feature->isOK());
+	}
+
+	public function testIsOKEmpty()
+	{
+		$this->getFeatureResponse('Hi there');
+		$this->response->setStatusCode(200);
+		$this->response->setBody('');
+
+		$this->assertFalse($this->feature->isOK());
 	}
 
 	public function testAssertSee()
@@ -79,6 +89,14 @@ class FeatureResponseTest extends CIUnitTestCase
 		$this->feature->assertDontSeeElement('h1.para');
 	}
 
+	public function testAssertSeeLink()
+	{
+		$this->getFeatureResponse('<h1 class="header"><a href="http://example.com/hello">Hello</a> <span>World</span></h1>');
+
+		$this->feature->assertSeeElement('h1');
+		$this->feature->assertSeeLink('Hello');
+	}
+
 	public function testAssertSeeInField()
 	{
 		$this->getFeatureResponse('<html><body><input type="text" name="user[name]" value="Foobar"></body></html>');
@@ -102,6 +120,22 @@ class FeatureResponseTest extends CIUnitTestCase
 		$this->assertTrue($this->feature->response instanceof RedirectResponse);
 		$this->assertTrue($this->feature->isRedirect());
 		$this->feature->assertRedirect();
+	}
+
+	public function testGetRedirectUrlReturnsUrl()
+	{
+		$this->getFeatureResponse('<h1>Hello World</h1>');
+		$this->feature->response = new RedirectResponse(new Config\App());
+		$this->feature->response->redirect('foo/bar');
+
+		$this->assertEquals('foo/bar', $this->feature->getRedirectUrl());
+	}
+
+	public function testGetRedirectUrlReturnsNull()
+	{
+		$this->getFeatureResponse('<h1>Hello World</h1>');
+
+		$this->assertNull($this->feature->getRedirectUrl());
 	}
 
 	public function testAssertStatus()
@@ -148,6 +182,13 @@ class FeatureResponseTest extends CIUnitTestCase
 		$this->feature->assertHeader('foo', 'bar');
 	}
 
+	public function testAssertHeaderMissing()
+	{
+		$this->getFeatureResponse('<h1>Hello World</h1>', [], ['foo' => 'bar']);
+
+		$this->feature->assertHeader('foo');
+		$this->feature->assertHeaderMissing('banana');
+	}
 
 	public function testAssertCookie()
 	{
@@ -180,16 +221,59 @@ class FeatureResponseTest extends CIUnitTestCase
 	public function testGetJSON()
 	{
 		$this->getFeatureResponse(['foo' => 'bar']);
-		$config = new \Config\Format();
+		$config    = new \Config\Format();
 		$formatter = $config->getFormatter('application/json');
 
 		$this->assertEquals($formatter->format(['foo' => 'bar']), $this->feature->getJSON());
 	}
 
+	public function testEmptyJSON()
+	{
+		$this->getFeatureResponse('<h1>Hello World</h1>');
+		$this->response->setJSON('', true);
+		$config    = new \Config\Format();
+		$formatter = $config->getFormatter('application/json');
+
+		// this should be "" - json_encode('');
+		$this->assertEquals('""', $this->feature->getJSON());
+	}
+
+	public function testFalseJSON()
+	{
+		$this->getFeatureResponse('<h1>Hello World</h1>');
+		$this->response->setJSON(false, true);
+		$config    = new \Config\Format();
+		$formatter = $config->getFormatter('application/json');
+
+		// this should be FALSE - json_encode(false)
+		$this->assertEquals('false', $this->feature->getJSON());
+	}
+
+	public function testTrueJSON()
+	{
+		$this->getFeatureResponse('<h1>Hello World</h1>');
+		$this->response->setJSON(true, true);
+		$config    = new \Config\Format();
+		$formatter = $config->getFormatter('application/json');
+
+		// this should be TRUE - json_encode(true)
+		$this->assertEquals('true', $this->feature->getJSON());
+	}
+
+	public function testInvalidJSON()
+	{
+		$tmp = ' test " case ';
+		$this->getFeatureResponse('<h1>Hello World</h1>');
+		$this->response->setBody($tmp);
+
+		// this should be FALSE - invalid JSON - will see if this is working that way ;-)
+		$this->assertFalse($this->response->getBody() === $this->feature->getJSON());
+	}
+
 	public function testGetXML()
 	{
 		$this->getFeatureResponse(['foo' => 'bar']);
-		$config = new \Config\Format();
+		$config    = new \Config\Format();
 		$formatter = $config->getFormatter('application/xml');
 
 		$this->assertEquals($formatter->format(['foo' => 'bar']), $this->feature->getXML());
@@ -199,8 +283,9 @@ class FeatureResponseTest extends CIUnitTestCase
 	{
 		$this->getFeatureResponse([
 			'config' => [
-				'key-a', 'key-b'
-			]
+				'key-a',
+				'key-b',
+			],
 		]);
 
 		$this->feature->assertJSONFragment(['config' => ['key-a']]);
@@ -210,8 +295,9 @@ class FeatureResponseTest extends CIUnitTestCase
 	{
 		$data = [
 			'config' => [
-				'key-a', 'key-b'
-			]
+				'key-a',
+				'key-b',
+			],
 		];
 
 		$this->getFeatureResponse($data);
@@ -223,21 +309,21 @@ class FeatureResponseTest extends CIUnitTestCase
 	{
 		$data = [
 			'config' => [
-				'key-a', 'key-b'
-			]
+				'key-a',
+				'key-b',
+			],
 		];
 
 		$this->getFeatureResponse($data);
 
-		$config = new \Config\Format();
+		$config    = new \Config\Format();
 		$formatter = $config->getFormatter('application/json');
-		$expected = $formatter->format($data);
+		$expected  = $formatter->format($data);
 
 		$this->feature->assertJSONExact($expected);
 	}
 
-
-	protected function getFeatureResponse($body=null, array $responseOptions = [], array $headers = [])
+	protected function getFeatureResponse($body = null, array $responseOptions = [], array $headers = [])
 	{
 		$this->response = new Response(new \Config\App());
 		$this->response->setBody($body);
@@ -246,7 +332,7 @@ class FeatureResponseTest extends CIUnitTestCase
 		{
 			foreach ($responseOptions as $key => $value)
 			{
-				$method = 'set'.ucfirst($key);
+				$method = 'set' . ucfirst($key);
 
 				if (method_exists($this->response, $method))
 				{
@@ -265,4 +351,5 @@ class FeatureResponseTest extends CIUnitTestCase
 
 		$this->feature = new FeatureResponse($this->response);
 	}
+
 }

@@ -10,25 +10,25 @@ helper methods to make testing every aspect of your application as painless as p
     :local:
     :depth: 2
 
-************
-System Setup
-************
+*************
+System Set Up
+*************
 
 Installing phpUnit
 ==================
 
-CodeIgniter uses `phpUnit <https://phpunit.de/>`_ as the basis for all of its testing. There are two ways to install
+CodeIgniter uses `phpUnit <https://phpunit.de/>`__ as the basis for all of its testing. There are two ways to install
 phpUnit to use within your system.
 
 Composer
 --------
 
-The recommended method is to install it in your project using `Composer <https://getcomposer.org/>`_. While it's possible
+The recommended method is to install it in your project using `Composer <https://getcomposer.org/>`__. While it's possible
 to install it globally we do not recommend it, since it can cause compatibility issues with other projects on your
 system as time goes on.
 
 Ensure that you have Composer installed on your system. From the project root (the directory that contains the
-application and system directories) type the followin from the command line::
+application and system directories) type the following from the command line::
 
     > composer require --dev phpunit/phpunit
 
@@ -40,21 +40,13 @@ tests for this project by typing::
 Phar
 ----
 
-The other option is to download the .phar file from the `phpUnit <https://phpunit.de/getting-started/phpunit-7.html>`_ site.
-This is standalone file that should be placed within your project root.
+The other option is to download the .phar file from the `phpUnit <https://phpunit.de/getting-started/phpunit-7.html>`__ site.
+This is a standalone file that should be placed within your project root.
 
 
-phpunit.xml
-===========
-
-A basic configuration for phpUnit has already been defined in ``phpunit.xml.dist``. Any project-specific changes to
-this file should be done in a separate file so that it doesn't get overwritten by any framework updates. Copying the file
-to ``phpunit.xml`` will create a file that phpUnit will use instead of the original file.
-
-
-========================
+************************
 Testing Your Application
-========================
+************************
 
 PHPUnit Configuration
 =====================
@@ -69,14 +61,16 @@ Your ``phpunit.xml`` should exclude the ``system`` folder, as well as any ``vend
 The Test Class
 ==============
 
-In order to take advantage of the additional tools provided, your tests must extend ``\CIUnitTestCase``. All tests
-are expected to be located in the **tests/** directory by default.
+In order to take advantage of the additional tools provided, your tests must extend ``CIUnitTestCase``. All tests
+are expected to be located in the **tests/app** directory by default.
 
-To test a new library, **Foo**, you would create a new file at **tests/TestFoo.php**::
+To test a new library, **Foo**, you would create a new file at **tests/app/Libraries/FooTest.php**::
 
-    <?php namespace Tests;
+    <?php namespace App\Libraries;
 
-    class MyTests extends \CIUnitTestCase
+    use CodeIgniter\Test\CIUnitTestCase;
+
+    class FooTest extends CIUnitTestCase
     {
         public function testFooNotBar()
         {
@@ -84,13 +78,28 @@ To test a new library, **Foo**, you would create a new file at **tests/TestFoo.p
         }
     }
 
+To test one of your models, you might end up with something like this in ``tests/app/Models/OneOfMyModelsTest.php``::
+
+    <?php namespace App\Models;
+
+    use CodeIgniter\Test\CIUnitTestCase;
+
+    class OneOfMyModelsTest extends CIUnitTestCase
+    {
+        public function testFooNotBar()
+        {
+            . . .
+        }
+    }
+
+
 You can create any directory structure that fits your testing style/needs. When namespacing the test classes,
-remember that the **tests** directory is the root of the ``Tests`` namespace, so any classes you use must
-have the correct namespace relative to ``Tests``.
+remember that the **app** directory is the root of the ``App`` namespace, so any classes you use must
+have the correct namespace relative to ``App``.
 
-.. note:: Namespaces are not required for test classes, but they are helpful to ensure no class names collide.
+.. note:: Namespaces are not strictly required for test classes, but they are helpful to ensure no class names collide.
 
-When testing database results, you must use the `CIDatabaseTestClass </testing/database>`_ class.
+When testing database results, you must use the `CIDatabaseTestClass <database.html>`_ class.
 
 Additional Assertions
 ---------------------
@@ -111,7 +120,7 @@ Ensure that something you expected to be logged actually was::
 
 **assertEventTriggered($eventName)**
 
-Ensure that an event you excpected to be triggered actually was::
+Ensure that an event you expected to be triggered actually was::
 
     Events::on('foo', function($arg) use(&$result) {
         $result = $arg;
@@ -120,6 +129,59 @@ Ensure that an event you excpected to be triggered actually was::
     Events::trigger('foo', 'bar');
 
     $this->assertEventTriggered('foo');
+
+**assertHeaderEmitted($header, $ignoreCase=false)**
+
+Ensure that a header or cookie was actually emitted::
+
+    $response->setCookie('foo', 'bar');
+
+    ob_start();
+    $this->response->send();
+    $output = ob_get_clean(); // in case you want to check the actual body
+
+    $this->assertHeaderEmitted("Set-Cookie: foo=bar");
+
+Note: the test case with this should be `run as a separate process
+in PHPunit <https://phpunit.readthedocs.io/en/7.4/annotations.html#runinseparateprocess>`_.
+
+**assertHeaderNotEmitted($header, $ignoreCase=false)**
+
+Ensure that a header or cookie was not emitted::
+
+    $response->setCookie('foo', 'bar');
+
+    ob_start();
+    $this->response->send();
+    $output = ob_get_clean(); // in case you want to check the actual body
+
+    $this->assertHeaderNotEmitted("Set-Cookie: banana");
+
+Note: the test case with this should be `run as a separate process
+in PHPunit <https://phpunit.readthedocs.io/en/7.4/annotations.html#runinseparateprocess>`_.
+
+**assertCloseEnough($expected, $actual, $message='', $tolerance=1)**
+
+For extended execution time testing, tests that the absolute difference
+between expected and actual time is within the prescribed tolerance.::
+
+    $timer = new Timer();
+    $timer->start('longjohn', strtotime('-11 minutes'));
+    $this->assertCloseEnough(11 * 60, $timer->getElapsedTime('longjohn'));
+
+The above test will allow the actual time to be either 660 or 661 seconds.
+
+**assertCloseEnoughString($expected, $actual, $message='', $tolerance=1)**
+
+For extended execution time testing, tests that the absolute difference
+between expected and actual time, formatted as strings, is within the prescribed tolerance.::
+
+    $timer = new Timer();
+    $timer->start('longjohn', strtotime('-11 minutes'));
+    $this->assertCloseEnoughString(11 * 60, $timer->getElapsedTime('longjohn'));
+
+The above test will allow the actual time to be either 660 or 661 seconds.
+
 
 Accessing Protected/Private Properties
 --------------------------------------
@@ -172,7 +234,7 @@ parameter is the name of the property to set the value of. The third parameter i
 Mocking Services
 ================
 
-You will often find that you need to mock one of the services defined in **application/Config/Services.php** to limit
+You will often find that you need to mock one of the services defined in **app/Config/Services.php** to limit
 your tests to only the code in question, while simulating various responses from the services. This is especially
 true when testing controllers and other integration testing. The **Services** class provides two methods to make this
 simple: ``injectMock()``, and ``reset()``.
@@ -205,10 +267,7 @@ Removes all mocked classes from the Services class, bringing it back to its orig
 Stream Filters
 ==============
 
-Some stream filters have been provided as an alternate to these helper methods.
-
-CITestStreamFilter
-------------------
+**CITestStreamFilter** provides an alternate to these helper methods.
 
 You may need to test things that are difficult to test. Sometimes, capturing a stream, like PHP's own STDOUT, or STDERR,
 might be helpful. The ``CITestStreamFilter`` helps you capture the output from the stream of your choice.
@@ -232,4 +291,3 @@ An example demonstrating this inside one of your test cases::
         $expected = "first.\n";
         $this->assertEquals($expected, CITestStreamFilter::$buffer);
     }
-

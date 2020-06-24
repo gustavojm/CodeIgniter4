@@ -17,7 +17,8 @@ CodeIgniter's robust Email Class supports the following features:
 -  Email Debugging tools
 
 .. contents::
-  :local:
+    :local:
+    :depth: 2
 
 .. raw:: html
 
@@ -31,7 +32,7 @@ Sending Email
 =============
 
 Sending email is not only simple, but you can configure it on the fly or
-set your preferences in the **application/Config/Email.php** file.
+set your preferences in the **app/Config/Email.php** file.
 
 Here is a basic example demonstrating how you might send email::
 
@@ -74,10 +75,17 @@ Setting Email Preferences in a Config File
 
 If you prefer not to set preferences using the above method, you can
 instead put them into the config file. Simply open the
-**application/Config/Email.php** file, and set your configs in the
+**app/Config/Email.php** file, and set your configs in the
 Email properties. Then save the file and it will be used automatically.
 You will NOT need to use the ``$email->initialize()`` method if
 you set your preferences in the config file.
+
+Reviewing Preferences
+---------------------
+
+The settings used for the last successful send are available from the
+instance property ``$archive``. This is helpful for testing and debugging
+to determine that actual values at the time of the ``send()`` call.
 
 Email Preferences
 =================
@@ -250,6 +258,7 @@ Class Reference
 		and strip the tags.
 
 	.. php:method:: setHeader($header, $value)
+		:noindex:
 
 		:param	string	$header: Header name
 		:param	string	$value: Header value
@@ -378,7 +387,7 @@ Class Reference
 
 		.. note:: Content-ID for each e-mail must be re-created for it to be unique.
 
-	.. php:method:: printDebugger($include = array('headers', 'subject', 'body'))
+	.. php:method:: printDebugger($include = ['headers', 'subject', 'body'])
 
 		:param	array	$include: Which parts of the message to print out
 		:returns:	Formatted debug data

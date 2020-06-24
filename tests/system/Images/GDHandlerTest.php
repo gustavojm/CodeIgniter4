@@ -1,12 +1,8 @@
 <?php namespace CodeIgniter\Images;
 
-use CodeIgniter\Images\BaseHandler;
-use CodeIgniter\Images\Exceptions\ImageException;
-use CodeIgniter\Files\Exceptions\FileException;
 use CodeIgniter\Config\Services;
+use CodeIgniter\Images\Exceptions\ImageException;
 use org\bovigo\vfs\vfsStream;
-use org\bovigo\vfs\vfsStreamDirectory;
-use DirectoryIterator;
 
 /**
  * Unit testing for the GD image handler.
@@ -14,15 +10,15 @@ use DirectoryIterator;
  * different transformations, so we have to rely on the underlying package.
  * We can make sure that we can call it without blowing up,
  * and we can make sure the code coverage is good.
- * 
+ *
  * Was unable to test fontPath & related logic.
  */
-class GDHandlerTest extends \CIUnitTestCase
+class GDHandlerTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
-	public function setUp()
+	protected function setUp(): void
 	{
-		if ( ! extension_loaded('gd'))
+		if (! extension_loaded('gd'))
 		{
 			$this->markTestSkipped('The GD extension is not available.');
 			return;
@@ -33,14 +29,17 @@ class GDHandlerTest extends \CIUnitTestCase
 		// copy our support files
 		$this->origin = SUPPORTPATH . 'Images/';
 		// make subfolders
-		$structure = ['work' => [], 'wontwork' => []];
+		$structure = [
+			'work'     => [],
+			'wontwork' => [],
+		];
 		vfsStream::create($structure);
 		// with one of them read only
 		$wont = $this->root->getChild('wontwork')->chmod(0400);
 
 		$this->start = $this->root->url() . '/';
 
-		$this->path = $this->origin . 'ci-logo.png';
+		$this->path    = $this->origin . 'ci-logo.png';
 		$this->handler = Services::image('gd', null, false);
 	}
 
@@ -57,7 +56,7 @@ class GDHandlerTest extends \CIUnitTestCase
 	public function testImageProperties()
 	{
 		$this->handler->withFile($this->path);
-		$file = $this->handler->getFile();
+		$file  = $this->handler->getFile();
 		$props = $file->getProperties(true);
 
 		$this->assertEquals(155, $this->handler->getWidth());
@@ -74,14 +73,14 @@ class GDHandlerTest extends \CIUnitTestCase
 	public function testImageTypeProperties()
 	{
 		$this->handler->withFile($this->path);
-		$file = $this->handler->getFile();
+		$file  = $this->handler->getFile();
 		$props = $file->getProperties(true);
 
 		$this->assertEquals(IMAGETYPE_PNG, $props['image_type']);
 		$this->assertEquals('image/png', $props['mime_type']);
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testResizeIgnored()
 	{
@@ -123,7 +122,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->assertEquals(456, $this->handler->getHeight());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testCropTopLeft()
 	{
@@ -173,7 +172,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->assertEquals(100, $this->handler->getHeight());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRotate()
 	{
@@ -197,7 +196,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->handler->rotate(77);
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testFlatten()
 	{
@@ -207,7 +206,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->assertEquals(200, $this->handler->getHeight());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testFlip()
 	{
@@ -240,7 +239,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->handler->flip('bogus');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 	public function testFit()
 	{
 		$this->handler->withFile($this->path);
@@ -267,7 +266,17 @@ class GDHandlerTest extends \CIUnitTestCase
 
 	public function testFitPositions()
 	{
-		$choices = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
+		$choices = [
+			'top-left',
+			'top',
+			'top-right',
+			'left',
+			'center',
+			'right',
+			'bottom-left',
+			'bottom',
+			'bottom-right',
+		];
 		$this->handler->withFile($this->path);
 		foreach ($choices as $position)
 		{
@@ -277,7 +286,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		}
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testText()
 	{
@@ -287,7 +296,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->assertEquals(200, $this->handler->getHeight());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testMoreText()
 	{
@@ -297,7 +306,7 @@ class GDHandlerTest extends \CIUnitTestCase
 		$this->assertEquals(200, $this->handler->getHeight());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testImageCreation()
 	{
@@ -310,9 +319,24 @@ class GDHandlerTest extends \CIUnitTestCase
 		}
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
-	public function testImageSave()
+	public function testImageCopy()
+	{
+		foreach (['gif', 'jpeg', 'png'] as $type)
+		{
+			$this->handler->withFile($this->origin . 'ci-logo.' . $type);
+			$this->handler->save($this->start . 'work/ci-logo.' . $type);
+			$this->assertTrue($this->root->hasChild('work/ci-logo.' . $type));
+
+			$this->assertEquals(
+				file_get_contents($this->origin . 'ci-logo.' . $type),
+				$this->root->getChild('work/ci-logo.' . $type)->getContent()
+			);
+		}
+	}
+
+	public function testImageCompressionGetResource()
 	{
 		foreach (['gif', 'jpeg', 'png'] as $type)
 		{
@@ -320,6 +344,71 @@ class GDHandlerTest extends \CIUnitTestCase
 			$this->handler->getResource(); // make sure resource is loaded
 			$this->handler->save($this->start . 'work/ci-logo.' . $type);
 			$this->assertTrue($this->root->hasChild('work/ci-logo.' . $type));
+
+			$this->assertNotEquals(
+				file_get_contents($this->origin . 'ci-logo.' . $type),
+				$this->root->getChild('work/ci-logo.' . $type)->getContent()
+			);
+		}
+	}
+
+	public function testImageCompressionWithResource()
+	{
+		foreach (['gif', 'jpeg', 'png'] as $type)
+		{
+			$this->handler->withFile($this->origin . 'ci-logo.' . $type)
+				->withResource() // make sure resource is loaded
+				->save($this->start . 'work/ci-logo.' . $type);
+
+			$this->assertTrue($this->root->hasChild('work/ci-logo.' . $type));
+
+			$this->assertNotEquals(
+				file_get_contents($this->origin . 'ci-logo.' . $type),
+				$this->root->getChild('work/ci-logo.' . $type)->getContent()
+			);
+		}
+	}
+
+	public function testImageConvert()
+	{
+		$this->handler->withFile($this->origin . 'ci-logo.jpeg');
+		$this->handler->getResource(); // make sure resource is loaded
+		$this->handler->convert(IMAGETYPE_PNG);
+		$this->handler->save($this->start . 'work/ci-logo.png');
+		$this->assertEquals(exif_imagetype($this->start . 'work/ci-logo.png'), IMAGETYPE_PNG);
+	}
+
+	public function testImageReorientLandscape()
+	{
+		for ($i = 0; $i <= 8; $i++)
+		{
+			$source = $this->origin . 'EXIFsamples/landscape_' . '' . $i . '.jpg';
+
+			$this->handler->withFile($source);
+			$this->handler->reorient();
+
+			$resource = $this->handler->getResource();
+			$point    = imagecolorat($resource, 0, 0);
+			$rgb      = imagecolorsforindex($resource, $point);
+
+			$this->assertEquals(['red' => 62, 'green' => 62, 'blue' => 62, 'alpha' => 0], $rgb);
+		}
+	}
+
+	public function testImageReorientPortrait()
+	{
+		for ($i = 0; $i <= 8; $i++)
+		{
+			$source = $this->origin . 'EXIFsamples/portrait_' . '' . $i . '.jpg';
+
+			$this->handler->withFile($source);
+			$this->handler->reorient();
+
+			$resource = $this->handler->getResource();
+			$point    = imagecolorat($resource, 0, 0);
+			$rgb      = imagecolorsforindex($resource, $point);
+
+			$this->assertEquals(['red' => 62, 'green' => 62, 'blue' => 62, 'alpha' => 0], $rgb);
 		}
 	}
 

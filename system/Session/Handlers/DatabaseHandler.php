@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Session\Handlers;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,18 +28,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package	CodeIgniter
- * @author	CodeIgniter Dev Team
- * @copyright	2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
-use CodeIgniter\Session\Exceptions\SessionException;
-use Config\Database;
+
+namespace CodeIgniter\Session\Handlers;
+
 use CodeIgniter\Config\BaseConfig;
 use CodeIgniter\Database\BaseConnection;
+use CodeIgniter\Session\Exceptions\SessionException;
+use Config\Database;
 
 /**
  * Session handler using current Database for storage
@@ -77,7 +81,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	/**
 	 * Row exists flag
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $rowExists = false;
 
@@ -85,11 +89,13 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 
 	/**
 	 * Constructor
+	 *
 	 * @param BaseConfig $config
+	 * @param string     $ipAddress
 	 */
-	public function __construct(BaseConfig $config)
+	public function __construct(BaseConfig $config, string $ipAddress)
 	{
-		parent::__construct($config);
+		parent::__construct($config, $ipAddress);
 
 		// Determine Table
 		$this->table = $config->sessionSavePath;
@@ -100,7 +106,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 		}
 
 		// Get DB Connection
-		$this->DBGroup = ! empty($config->sessionDBGroup) ? $config->sessionDBGroup : 'default';
+		$this->DBGroup = $config->sessionDBGroup ?? config(Database::class)->defaultGroup;
 
 		$this->db = Database::connect($this->DBGroup);
 
@@ -123,10 +129,10 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	 *
 	 * Ensures we have an initialized database connection.
 	 *
-	 * @param    string $savePath Path to session files' directory
-	 * @param    string $name     Session cookie name
+	 * @param string $savePath Path to session files' directory
+	 * @param string $name     Session cookie name
 	 *
-	 * @return bool
+	 * @return boolean
 	 * @throws \Exception
 	 */
 	public function open($savePath, $name): bool
@@ -146,20 +152,23 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	 *
 	 * Reads session data and acquires a lock
 	 *
-	 * @param    string $sessionID Session ID
+	 * @param string $sessionID Session ID
 	 *
-	 * @return    string    Serialized session data
+	 * @return string    Serialized session data
 	 */
-	public function read($sessionID)
+	public function read($sessionID): string
 	{
-		if ($this->lockSession($sessionID) == false)
+		if ($this->lockSession($sessionID) === false)
 		{
 			$this->fingerprint = md5('');
 			return '';
 		}
 
 		// Needed by write() to detect session_regenerate_id() calls
-		$this->sessionID = $sessionID;
+		if (is_null($this->sessionID))
+		{
+			$this->sessionID = $sessionID;
+		}
 
 		$builder = $this->db->table($this->table)
 				->select('data')
@@ -167,7 +176,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 
 		if ($this->matchIP)
 		{
-			$builder = $builder->where('ip_address', $_SERVER['REMOTE_ADDR']);
+			$builder = $builder->where('ip_address', $this->ipAddress);
 		}
 
 		$result = $builder->get()->getRow();
@@ -177,7 +186,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 			// PHP7 will reuse the same SessionHandler object after
 			// ID regeneration, so we need to explicitly set this to
 			// FALSE instead of relying on the default ...
-			$this->rowExists = FALSE;
+			$this->rowExists   = false;
 			$this->fingerprint = md5('');
 
 			return '';
@@ -196,7 +205,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 		}
 
 		$this->fingerprint = md5($result);
-		$this->rowExists = true;
+		$this->rowExists   = true;
 
 		return $result;
 	}
@@ -208,10 +217,10 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	 *
 	 * Writes (create / update) session data
 	 *
-	 * @param    string $sessionID   Session ID
-	 * @param    string $sessionData Serialized session data
+	 * @param string $sessionID   Session ID
+	 * @param string $sessionData Serialized session data
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
 	public function write($sessionID, $sessionData): bool
 	{
@@ -223,11 +232,6 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 		// Was the ID regenerated?
 		elseif ($sessionID !== $this->sessionID)
 		{
-			if ( ! $this->releaseLock() || ! $this->lockSession($sessionID))
-			{
-				return $this->fail();
-			}
-
 			$this->rowExists = false;
 			$this->sessionID = $sessionID;
 		}
@@ -235,19 +239,19 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 		if ($this->rowExists === false)
 		{
 			$insertData = [
-				'id'		 => $sessionID,
-				'ip_address' => $_SERVER['REMOTE_ADDR'],
-				'timestamp'	 => time(),
-				'data'		 => $this->platform === 'postgre' ? base64_encode($sessionData) : $sessionData
+				'id'         => $sessionID,
+				'ip_address' => $this->ipAddress,
+				'timestamp'  => time(),
+				'data'       => $this->platform === 'postgre' ? base64_encode($sessionData) : $sessionData,
 			];
 
-			if ( ! $this->db->table($this->table)->insert($insertData))
+			if (! $this->db->table($this->table)->insert($insertData))
 			{
 				return $this->fail();
 			}
 
 			$this->fingerprint = md5($sessionData);
-			$this->rowExists = true;
+			$this->rowExists   = true;
 
 			return true;
 		}
@@ -256,11 +260,11 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 
 		if ($this->matchIP)
 		{
-			$builder = $builder->where('ip_address', $_SERVER['REMOTE_ADDR']);
+			$builder = $builder->where('ip_address', $this->ipAddress);
 		}
 
 		$updateData = [
-			'timestamp' => time()
+			'timestamp' => time(),
 		];
 
 		if ($this->fingerprint !== md5($sessionData))
@@ -268,7 +272,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 			$updateData['data'] = ($this->platform === 'postgre') ? base64_encode($sessionData) : $sessionData;
 		}
 
-		if ( ! $builder->update($updateData))
+		if (! $builder->update($updateData))
 		{
 			return $this->fail();
 		}
@@ -285,7 +289,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	 *
 	 * Releases locks and closes file descriptor.
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
 	public function close(): bool
 	{
@@ -301,7 +305,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	 *
 	 * @param string $sessionID
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	public function destroy($sessionID): bool
 	{
@@ -311,10 +315,10 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 
 			if ($this->matchIP)
 			{
-				$builder = $builder->where('ip_address', $_SERVER['REMOTE_ADDR']);
+				$builder = $builder->where('ip_address', $this->ipAddress);
 			}
 
-			if ( ! $builder->delete())
+			if (! $builder->delete())
 			{
 				return $this->fail();
 			}
@@ -337,9 +341,9 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	 *
 	 * Deletes expired sessions
 	 *
-	 * @param    int $maxlifetime Maximum lifetime of sessions
+	 * @param integer $maxlifetime Maximum lifetime of sessions
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
 	public function gc($maxlifetime): bool
 	{
@@ -348,11 +352,17 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 
 	//--------------------------------------------------------------------
 
+	/**
+	 * Lock the session.
+	 *
+	 * @param  string $sessionID
+	 * @return boolean
+	 */
 	protected function lockSession(string $sessionID): bool
 	{
 		if ($this->platform === 'mysql')
 		{
-			$arg = md5($sessionID . ($this->matchIP ? '_' . $_SERVER['REMOTE_ADDR'] : ''));
+			$arg = md5($sessionID . ($this->matchIP ? '_' . $this->ipAddress : ''));
 			if ($this->db->query("SELECT GET_LOCK('{$arg}', 300) AS ci_session_lock")->getRow()->ci_session_lock)
 			{
 				$this->lock = $arg;
@@ -363,7 +373,7 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 		}
 		elseif ($this->platform === 'postgre')
 		{
-			$arg = "hashtext('{$sessionID}')" . ($this->matchIP ? ", hashtext('{$_SERVER['REMOTE_ADDR']}')" : '');
+			$arg = "hashtext('{$sessionID}')" . ($this->matchIP ? ", hashtext('{$this->ipAddress}')" : '');
 			if ($this->db->simpleQuery("SELECT pg_advisory_lock({$arg})"))
 			{
 				$this->lock = $arg;
@@ -382,11 +392,11 @@ class DatabaseHandler extends BaseHandler implements \SessionHandlerInterface
 	/**
 	 * Releases the lock, if any.
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	protected function releaseLock(): bool
 	{
-		if ( ! $this->lock)
+		if (! $this->lock)
 		{
 			return true;
 		}

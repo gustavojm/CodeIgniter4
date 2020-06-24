@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Config;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,17 +28,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package      CodeIgniter
- * @author       CodeIgniter Dev Team
- * @copyright    2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license      https://opensource.org/licenses/MIT	MIT License
- * @link         https://codeigniter.com
- * @since        Version 4.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
+ */
+
+namespace CodeIgniter\Config;
+
+/**
+ * View configuration
  */
 class View extends BaseConfig
 {
 
+	/**
+	 * Built-in View filters.
+	 *
+	 * @var type
+	 */
 	protected $coreFilters = [
 		'abs'            => '\abs',
 		'capitalize'     => '\CodeIgniter\View\Filters::capitalize',
@@ -61,6 +73,12 @@ class View extends BaseConfig
 		'title'          => '\CodeIgniter\View\Filters::title',
 		'upper'          => '\strtoupper',
 	];
+
+	/**
+	 * Built-in View plugins.
+	 *
+	 * @var type
+	 */
 	protected $corePlugins = [
 		'current_url'       => '\CodeIgniter\View\Plugins::currentURL',
 		'previous_url'      => '\CodeIgniter\View\Plugins::previousURL',
@@ -72,10 +90,16 @@ class View extends BaseConfig
 		'siteURL'           => '\CodeIgniter\View\Plugins::siteURL',
 	];
 
+	/**
+	 * Constructor.
+	 *
+	 * Merge the built-in and developer-configured filters and plugins,
+	 * with preference to the developer ones.
+	 */
 	public function __construct()
 	{
-		$this->filters = array_merge($this->filters, $this->coreFilters);
-		$this->plugins = array_merge($this->plugins, $this->corePlugins);
+		$this->filters = array_merge($this->coreFilters, $this->filters);
+		$this->plugins = array_merge($this->corePlugins, $this->plugins);
 
 		parent::__construct();
 	}

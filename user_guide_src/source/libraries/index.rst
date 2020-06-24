@@ -5,22 +5,14 @@ Library Reference
 .. toctree::
     :titlesonly:
 
-    api_responses
-    benchmark
     caching
-    cli
-    content_negotiation
     curlrequest
     email
+    encryption
     files
     honeypot
     images
-    incomingrequest
-    localization
-    message
     pagination
-    request
-    response
     security
     sessions
     throttler

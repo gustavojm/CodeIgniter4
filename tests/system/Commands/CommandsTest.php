@@ -1,14 +1,14 @@
-<?php namespace CodeIgniter\Commands;
+<?php
+namespace CodeIgniter\Commands;
 
-use Config\Services;
-use Tests\Support\Config\MockAppConfig;
-use CodeIgniter\HTTP\UserAgent;
 use CodeIgniter\CLI\CLI;
 use CodeIgniter\CLI\CommandRunner;
+use CodeIgniter\HTTP\UserAgent;
 use CodeIgniter\Test\Filters\CITestStreamFilter;
-use Tests\Support\Config\MockLogger;
+use CodeIgniter\Test\Mock\MockAppConfig;
+use Config\Services;
 
-class CommandsTest extends \CIUnitTestCase
+class CommandsTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	private $stream_filter;
@@ -19,36 +19,38 @@ class CommandsTest extends \CIUnitTestCase
 	protected $logger;
 	protected $runner;
 
-
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
 		CITestStreamFilter::$buffer = '';
-		$this->stream_filter = stream_filter_append(STDOUT, 'CITestStreamFilter');
+		$this->stream_filter        = stream_filter_append(STDOUT, 'CITestStreamFilter');
 
 		$this->env = new \CodeIgniter\Config\DotEnv(ROOTPATH);
 		$this->env->load();
 
 		// Set environment values that would otherwise stop the framework from functioning during tests.
-		if ( ! isset($_SERVER['app.baseURL']))
+		if (! isset($_SERVER['app.baseURL']))
 		{
 			$_SERVER['app.baseURL'] = 'http://example.com';
 		}
 
-		$_SERVER['argv'] = ['spark', 'list'];
+		$_SERVER['argv'] = [
+			'spark',
+			'list',
+		];
 		$_SERVER['argc'] = 2;
 		CLI::init();
 
-		$this->config = new MockAppConfig();
-		$this->request = new \CodeIgniter\HTTP\IncomingRequest($this->config, new \CodeIgniter\HTTP\URI('https://somwhere.com'), null, new UserAgent());
+		$this->config   = new MockAppConfig();
+		$this->request  = new \CodeIgniter\HTTP\IncomingRequest($this->config, new \CodeIgniter\HTTP\URI('https://somwhere.com'), null, new UserAgent());
 		$this->response = new \CodeIgniter\HTTP\Response($this->config);
-		$this->logger = Services::logger();
-		$this->runner = new CommandRunner();
+		$this->logger   = Services::logger();
+		$this->runner   = new CommandRunner();
 		$this->runner->initController($this->request, $this->response, $this->logger);
 	}
 
-	public function tearDown()
+	public function tearDown(): void
 	{
 		stream_filter_remove($this->stream_filter);
 	}
@@ -59,8 +61,8 @@ class CommandsTest extends \CIUnitTestCase
 		$result = CITestStreamFilter::$buffer;
 
 		// make sure the result looks like a command list
-		$this->assertContains('Displays basic usage information.', $result);
-		$this->assertContains('command_name', $result);
+		$this->assertStringContainsString('Displays basic usage information.', $result);
+		$this->assertStringContainsString('command_name', $result);
 	}
 
 	public function testListCommands()
@@ -69,8 +71,83 @@ class CommandsTest extends \CIUnitTestCase
 		$result = CITestStreamFilter::$buffer;
 
 		// make sure the result looks like a command list
-		$this->assertContains('Lists the available commands.', $result);
-		$this->assertContains('Displays basic usage information.', $result);
+		$this->assertStringContainsString('Lists the available commands.', $result);
+		$this->assertStringContainsString('Displays basic usage information.', $result);
+	}
+
+	public function testCustomCommand()
+	{
+		$this->runner->index(['app:info']);
+		$result = CITestStreamFilter::$buffer;
+
+		$this->assertStringContainsString('CI Version:', $result);
+	}
+
+	public function testShowError()
+	{
+		$this->runner->index(['app:info']);
+		$commands = $this->runner->getCommands();
+		$command  = new $commands['app:info']['class']($this->logger, $this->runner);
+
+		$command->helpme();
+		$result = CITestStreamFilter::$buffer;
+		$this->assertStringContainsString('Displays basic usage information.', $result);
+	}
+
+	public function testCommandCall()
+	{
+		$this->error_filter = stream_filter_append(STDERR, 'CITestStreamFilter');
+		$this->runner->index(['app:info']);
+		$commands = $this->runner->getCommands();
+		$command  = new $commands['app:info']['class']($this->logger, $this->runner);
+
+		$command->bomb();
+		$result = CITestStreamFilter::$buffer;
+		stream_filter_remove($this->error_filter);
+
+		$this->assertStringContainsString('Invalid background color:', $result);
+	}
+
+	public function testNonexistantCommand()
+	{
+		// catch errors too
+		$this->stream_filter = stream_filter_append(STDERR, 'CITestStreamFilter');
+
+		$this->runner->index(['app:oops']);
+		$result = CITestStreamFilter::$buffer;
+
+		$this->assertStringContainsString('not found', $result);
+	}
+
+	public function testAbstractCommand()
+	{
+		// catch errors too
+		$this->stream_filter = stream_filter_append(STDERR, 'CITestStreamFilter');
+
+		$this->runner->index(['app:pablo']);
+		$result = CITestStreamFilter::$buffer;
+
+		$this->assertStringContainsString('not found', $result);
+	}
+
+	public function testNamespacesCommand()
+	{
+		$this->runner->index(['namespaces']);
+		$result = CITestStreamFilter::$buffer;
+
+		$this->assertStringContainsString('| Namespace', $result);
+		$this->assertStringContainsString('| Config', $result);
+		$this->assertStringContainsString('| Yes', $result);
+	}
+
+	public function testRoutesCommand()
+	{
+		$this->runner->index(['routes']);
+		$result = CITestStreamFilter::$buffer;
+
+		$this->assertStringContainsString('| Route', $result);
+		$this->assertStringContainsString('| testing', $result);
+		$this->assertStringContainsString('\\TestController::index', $result);
 	}
 
 }

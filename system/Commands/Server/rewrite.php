@@ -6,19 +6,14 @@
  * development server based around PHP's built-in development
  * server. This file simply tries to mimic Apache's mod_rewrite
  * functionality so the site will operate as normal.
- *
  */
+
 // @codeCoverageIgnoreStart
 // Avoid this file run when listing commands
 if (php_sapi_name() === 'cli')
 {
 	return;
 }
-
-// If we're serving the site locally, then we need
-// to let the application know that we're in development mode
-$_SERVER['CI_ENVIRONMENT'] = 'development';
-
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 
 // Front Controller path - expected to be in the default folder

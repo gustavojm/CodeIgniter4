@@ -4,25 +4,25 @@ namespace CodeIgniter\Helpers;
 
 use org\bovigo\vfs\vfsStream;
 
-class FilesystemHelperTest extends \CIUnitTestCase
+class FilesystemHelperTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
 		$this->structure = [
-			'foo' => [
+			'foo'           => [
 				'bar' => 'Once upon a midnight dreary',
-				'baz' => 'While I pondered weak and weary'
+				'baz' => 'While I pondered weak and weary',
 			],
-			'boo' => [
+			'boo'           => [
 				'far' => 'Upon a tome of long-forgotten lore',
-				'faz' => 'There came a tapping up on the door'
+				'faz' => 'There came a tapping up on the door',
 			],
 			'AnEmptyFolder' => [],
-			'simpleFile' => 'A tap-tap-tapping upon my door',
-			'.hidden' => 'There is no spoon'
+			'simpleFile'    => 'A tap-tap-tapping upon my door',
+			'.hidden'       => 'There is no spoon',
 		];
 	}
 
@@ -34,14 +34,14 @@ class FilesystemHelperTest extends \CIUnitTestCase
 		$this->assertTrue(function_exists('directory_map'));
 
 		$expected = [
-			'foo' . DIRECTORY_SEPARATOR => [
-				'bar',
-				'baz'
-			],
-			'boo' . DIRECTORY_SEPARATOR => [
-				'far',
-				'faz'
-			],
+			'foo' . DIRECTORY_SEPARATOR           => [
+						'bar',
+						'baz',
+					],
+			'boo' . DIRECTORY_SEPARATOR           => [
+						'far',
+						'faz',
+					],
 			'AnEmptyFolder' . DIRECTORY_SEPARATOR => [],
 			'simpleFile'
 		];
@@ -59,13 +59,13 @@ class FilesystemHelperTest extends \CIUnitTestCase
 
 		$expected = [
 			'foo' . DIRECTORY_SEPARATOR => [
-				'bar',
-				'baz'
-			],
+						'bar',
+						'baz',
+					],
 			'boo' . DIRECTORY_SEPARATOR => [
-				'far',
-				'faz'
-			],
+						'far',
+						'faz',
+					],
 			'AnEmptyFolder' . DIRECTORY_SEPARATOR => [],
 			'simpleFile',
 			'.hidden'
@@ -86,7 +86,7 @@ class FilesystemHelperTest extends \CIUnitTestCase
 			'boo' . DIRECTORY_SEPARATOR,
 			'AnEmptyFolder' . DIRECTORY_SEPARATOR,
 			'simpleFile',
-			'.hidden'
+			'.hidden',
 		];
 
 		$root = vfsStream::setup('root', null, $this->structure);
@@ -152,9 +152,9 @@ class FilesystemHelperTest extends \CIUnitTestCase
 	public function testDeleteFilesLeavesHTFiles()
 	{
 		$structure = array_merge($this->structure, [
-			'.htaccess' => 'Deny All',
+			'.htaccess'  => 'Deny All',
 			'index.html' => 'foo',
-			'index.php' => 'blah'
+			'index.php'  => 'blah',
 		]);
 
 		$vfs = vfsStream::setup('root', null, $structure);
@@ -184,10 +184,14 @@ class FilesystemHelperTest extends \CIUnitTestCase
 		// Not sure the directory names should actually show up
 		// here but this matches v3.x results.
 		$expected = [
-			'foo',
-			'boo',
 			'AnEmptyFolder',
-			'simpleFile'
+			'bar',
+			'baz',
+			'boo',
+			'far',
+			'faz',
+			'foo',
+			'simpleFile',
 		];
 
 		$vfs = vfsStream::setup('root', null, $this->structure);
@@ -195,20 +199,65 @@ class FilesystemHelperTest extends \CIUnitTestCase
 		$this->assertEquals($expected, get_filenames($vfs->url(), false));
 	}
 
-	public function testGetFilenamesWithSource()
+	public function testGetFilenamesWithHidden()
 	{
 		$this->assertTrue(function_exists('delete_files'));
 
 		// Not sure the directory names should actually show up
 		// here but this matches v3.x results.
 		$expected = [
-			DIRECTORY_SEPARATOR . 'foo',
-			DIRECTORY_SEPARATOR . 'boo',
-			DIRECTORY_SEPARATOR . 'AnEmptyFolder',
-			DIRECTORY_SEPARATOR . 'simpleFile'
+			'.hidden',
+			'AnEmptyFolder',
+			'bar',
+			'baz',
+			'boo',
+			'far',
+			'faz',
+			'foo',
+			'simpleFile',
 		];
 
 		$vfs = vfsStream::setup('root', null, $this->structure);
+
+		$this->assertEquals($expected, get_filenames($vfs->url(), false, true));
+	}
+
+	public function testGetFilenamesWithRelativeSource()
+	{
+		$this->assertTrue(function_exists('get_filenames'));
+
+		$expected = [
+			'AnEmptyFolder',
+			'boo',
+			'boo/far',
+			'boo/faz',
+			'foo',
+			'foo/bar',
+			'foo/baz',
+			'simpleFile',
+		];
+
+		$vfs = vfsStream::setup('root', null, $this->structure);
+
+		$this->assertEquals($expected, get_filenames($vfs->url(), null));
+	}
+
+	public function testGetFilenamesWithFullSource()
+	{
+		$this->assertTrue(function_exists('get_filenames'));
+
+		$vfs = vfsStream::setup('root', null, $this->structure);
+
+		$expected = [
+			$vfs->url() . DIRECTORY_SEPARATOR . 'AnEmptyFolder',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'boo',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'boo/far',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'boo/faz',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'foo',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'foo/bar',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'foo/baz',
+			$vfs->url() . DIRECTORY_SEPARATOR . 'simpleFile',
+		];
 
 		$this->assertEquals($expected, get_filenames($vfs->url(), true));
 	}
@@ -222,26 +271,30 @@ class FilesystemHelperTest extends \CIUnitTestCase
 
 	public function testGetDirFileInfo()
 	{
-		$file = SUPPORTPATH.'Files/baker/banana.php';
+		$file = SUPPORTPATH . 'Files/baker/banana.php';
 		$info = get_file_info($file);
 
 		$expected = [
 			'banana.php' => [
-				'name' => 'banana.php',
-				'server_path' => $file,
-				'size' => $info['size'],
-				'date' => $info['date'],
-				'relative_path' => realpath(__DIR__ .'/../../_support/Files/baker'),
-			]
+				'name'          => 'banana.php',
+				'server_path'   => $file,
+				'size'          => $info['size'],
+				'date'          => $info['date'],
+				'relative_path' => realpath(__DIR__ . '/../../_support/Files/baker'),
+			],
 		];
-
 
 		$this->assertEquals($expected, get_dir_file_info(SUPPORTPATH . 'Files/baker'));
 	}
 
 	public function testGetDirFileInfoNested()
 	{
-		$expected = ['banana.php', 'prune_ripe.php', 'fig_3.php', 'apple.php'];
+		$expected = [
+			'banana.php',
+			'prune_ripe.php',
+			'fig_3.php',
+			'apple.php',
+		];
 
 		$results = get_dir_file_info(SUPPORTPATH . 'Files', false);
 		$this->assertEmpty(array_diff($expected, array_keys($results)));
@@ -258,16 +311,15 @@ class FilesystemHelperTest extends \CIUnitTestCase
 
 	public function testGetFileInfo()
 	{
-		$file = SUPPORTPATH.'Files/baker/banana.php';
+		$file = SUPPORTPATH . 'Files/baker/banana.php';
 		$info = get_file_info($file);
 
 		$expected = [
-			'name' => 'banana.php',
+			'name'        => 'banana.php',
 			'server_path' => $file,
-			'size' => $info['size'],
-			'date' => $info['date'],
+			'size'        => $info['size'],
+			'date'        => $info['date'],
 		];
-
 
 		$this->assertEquals($expected, get_file_info(SUPPORTPATH . 'Files/baker/banana.php'));
 	}
@@ -275,8 +327,8 @@ class FilesystemHelperTest extends \CIUnitTestCase
 	public function testGetFileInfoCustom()
 	{
 		$expected = [
-			'readable' => true,
-			'writable' => true,
+			'readable'   => true,
+			'writable'   => true,
 			'executable' => false,
 		];
 
@@ -285,7 +337,7 @@ class FilesystemHelperTest extends \CIUnitTestCase
 
 	public function testGetFileInfoPerms()
 	{
-		$file = SUPPORTPATH.'Files/baker/banana.php';
+		$file     = SUPPORTPATH . 'Files/baker/banana.php';
 		$expected = 0664;
 		chmod($file, $expected);
 
@@ -312,20 +364,22 @@ class FilesystemHelperTest extends \CIUnitTestCase
 	public function testSymbolicPermissions()
 	{
 		$expected = [
-			0777 => 'urwxrwxrwx',
-			0655 => 'urw-r-xr-x',
-			0123 => 'u--x-w--wx',
-			010655 => 'prw-r-xr-x',
-			020655 => 'crw-r-xr-x',
-			040655 => 'drw-r-xr-x',
-			060655 => 'brw-r-xr-x',
+			0777    => 'urwxrwxrwx',
+			0655    => 'urw-r-xr-x',
+			0123    => 'u--x-w--wx',
+			010655  => 'prw-r-xr-x',
+			020655  => 'crw-r-xr-x',
+			040655  => 'drw-r-xr-x',
+			060655  => 'brw-r-xr-x',
 			0100655 => '-rw-r-xr-x',
 			0120655 => 'lrw-r-xr-x',
 			0140655 => 'srw-r-xr-x',
 		];
 
 		foreach ($expected as $perm => $value)
+		{
 			$this->assertEquals($value, symbolic_permissions($perm));
+		}
 	}
 
 	//--------------------------------------------------------------------
@@ -344,7 +398,7 @@ class FilesystemHelperTest extends \CIUnitTestCase
 
 	public function testRealPathResolved()
 	{
-		$this->assertEquals(SUPPORTPATH . 'Helpers/', set_realpath(SUPPORTPATH . 'Files/../Helpers', true));
+		$this->assertEquals(SUPPORTPATH . 'Models/', set_realpath(SUPPORTPATH . 'Files/../Models', true));
 	}
 
 }

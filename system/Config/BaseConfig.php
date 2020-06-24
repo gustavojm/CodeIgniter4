@@ -1,4 +1,5 @@
-<?php namespace CodeIgniter\Config;
+<?php
+
 
 /**
  * CodeIgniter
@@ -7,7 +8,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,14 +29,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package      CodeIgniter
- * @author       CodeIgniter Dev Team
- * @copyright    2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license      https://opensource.org/licenses/MIT	MIT License
- * @link         https://codeigniter.com
- * @since        Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
+
+namespace CodeIgniter\Config;
 
 /**
  * Class BaseConfig
@@ -56,8 +60,18 @@ class BaseConfig
 	 */
 	public static $registrars = [];
 
+	/**
+	 * Has module discovery happened yet?
+	 *
+	 * @var boolean
+	 */
 	protected static $didDiscovery = false;
 
+	/**
+	 * The modules configuration.
+	 *
+	 * @var type
+	 */
 	protected static $moduleConfig;
 
 	/**
@@ -70,46 +84,52 @@ class BaseConfig
 	{
 		static::$moduleConfig = config('Modules');
 
-		$properties = array_keys(get_object_vars($this));
-		$prefix = get_class($this);
-		$slashAt = strrpos($prefix, '\\');
-		$shortPrefix = strtolower(substr($prefix, $slashAt === false ? 0  : $slashAt+1 ));
+		$properties  = array_keys(get_object_vars($this));
+		$prefix      = get_class($this);
+		$slashAt     = strrpos($prefix, '\\');
+		$shortPrefix = strtolower(substr($prefix, $slashAt === false ? 0 : $slashAt + 1));
 
 		foreach ($properties as $property)
 		{
-			if (is_array($this->$property))
+			$this->initEnvValue($this->$property, $property, $prefix, $shortPrefix);
+		}
+
+		if (defined('ENVIRONMENT') && ENVIRONMENT !== 'testing')
+		{
+			// well, this won't happen during unit testing
+			// @codeCoverageIgnoreStart
+			$this->registerProperties();
+			// @codeCoverageIgnoreEnd
+		}
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Initialization an environment-specific configuration setting
+	 *
+	 * @param mixed  &$property
+	 * @param string $name
+	 * @param string $prefix
+	 * @param string $shortPrefix
+	 *
+	 * @return mixed
+	 */
+	protected function initEnvValue(&$property, string $name, string $prefix, string $shortPrefix)
+	{
+		if (is_array($property))
+		{
+			foreach ($property as $key => $val)
 			{
-				foreach ($this->$property as $key => $val)
-				{
-					if ($value = $this->getEnvValue("{$property}.{$key}", $prefix, $shortPrefix))
-					{
-						if (is_null($value))
-						{
-							continue;
-						}
-
-						if ($value === 'false')
-						{
-							$value = false;
-						}
-						elseif ($value === 'true')
-						{
-							$value = true;
-						}
-
-						$this->$property[$key] = $value;
-					}
-				}
+				$this->initEnvValue($property[$key], "{$name}.{$key}", $prefix, $shortPrefix);
 			}
-			else
+		}
+		else
+		{
+			if (($value = $this->getEnvValue($name, $prefix, $shortPrefix)) !== false)
 			{
-				if (($value = $this->getEnvValue($property, $prefix, $shortPrefix)) !== false)
+				if (! is_null($value))
 				{
-					if (is_null($value))
-					{
-						continue;
-					}
-
 					if ($value === 'false')
 					{
 						$value = false;
@@ -119,17 +139,11 @@ class BaseConfig
 						$value = true;
 					}
 
-					$this->$property = is_bool($value)
-						? $value
-						: trim($value, '\'"');
+					$property = is_bool($value) ? $value : trim($value, '\'"');
 				}
 			}
 		}
-
-		if (defined('ENVIRONMENT') && ENVIRONMENT != 'testing')
-		{
-			$this->registerProperties();
-		}
+		return $property;
 	}
 
 	//--------------------------------------------------------------------
@@ -145,23 +159,19 @@ class BaseConfig
 	 */
 	protected function getEnvValue(string $property, string $prefix, string $shortPrefix)
 	{
-		$shortPrefix = ltrim( $shortPrefix, '\\' );
+		$shortPrefix = ltrim($shortPrefix, '\\');
 		switch (true)
 		{
-			case array_key_exists( "{$shortPrefix}.{$property}", $_ENV ):
+			case array_key_exists("{$shortPrefix}.{$property}", $_ENV):
 				return $_ENV["{$shortPrefix}.{$property}"];
-				break;
-			case array_key_exists( "{$shortPrefix}.{$property}", $_SERVER ):
+			case array_key_exists("{$shortPrefix}.{$property}", $_SERVER):
 				return $_SERVER["{$shortPrefix}.{$property}"];
-				break;
-			case array_key_exists( "{$prefix}.{$property}", $_ENV ):
+			case array_key_exists("{$prefix}.{$property}", $_ENV):
 				return $_ENV["{$prefix}.{$property}"];
-				break;
-			case array_key_exists( "{$prefix}.{$property}", $_SERVER ):
+			case array_key_exists("{$prefix}.{$property}", $_SERVER):
 				return $_SERVER["{$prefix}.{$property}"];
-				break;
 			default:
-				$value = getenv( $property );
+				$value = getenv($property);
 				return $value === false ? null : $value;
 		}
 	}
@@ -171,6 +181,8 @@ class BaseConfig
 	/**
 	 * Provides external libraries a simple way to register one or more
 	 * options into a config file.
+	 *
+	 * @throws \ReflectionException
 	 */
 	protected function registerProperties()
 	{
@@ -181,8 +193,16 @@ class BaseConfig
 
 		if (! static::$didDiscovery)
 		{
-			$locator = \Config\Services::locator();
-			static::$registrars = $locator->search('Config/Registrar.php');
+			$locator         = \Config\Services::locator();
+			$registrarsFiles = $locator->search('Config/Registrar.php');
+
+			foreach ($registrarsFiles as $file)
+			{
+				$className            = $locator->getClassname($file);
+				static::$registrars[] = new $className();
+			}
+
+			static::$didDiscovery = true;
 		}
 
 		$shortName = (new \ReflectionClass($this))->getShortName();
@@ -191,14 +211,14 @@ class BaseConfig
 		foreach (static::$registrars as $callable)
 		{
 			// ignore non-applicable registrars
-			if ( ! method_exists($callable, $shortName))
+			if (! method_exists($callable, $shortName))
 			{
 				continue;
 			}
 
 			$properties = $callable::$shortName();
 
-			if ( ! is_array($properties))
+			if (! is_array($properties))
 			{
 				throw new \RuntimeException('Registrars must return an array of properties and their values.');
 			}

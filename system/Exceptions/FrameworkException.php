@@ -8,12 +8,12 @@
  *
  * @package CodeIgniter\Exceptions
  */
+
 class FrameworkException extends \RuntimeException implements ExceptionInterface
 {
-
-	public static function forEmptyBaseURL(): self
+	public static function forEnabledZlibOutputCompression()
 	{
-		return new static('You have an empty or invalid base URL. The baseURL value must be set in Config\App.php, or through the .env file.');
+		return new static(lang('Core.enabledZlibOutputCompression'));
 	}
 
 	public static function forInvalidFile(string $path)
@@ -21,9 +21,9 @@ class FrameworkException extends \RuntimeException implements ExceptionInterface
 		return new static(lang('Core.invalidFile', [$path]));
 	}
 
-	public static function forCopyError()
+	public static function forCopyError(string $path)
 	{
-		return new static(lang('Core.copyError'));
+		return new static(lang('Core.copyError', [$path]));
 	}
 
 	public static function forMissingExtension(string $extension)
@@ -35,5 +35,4 @@ class FrameworkException extends \RuntimeException implements ExceptionInterface
 	{
 		return new static(lang('Core.noHandlers', [$class]));
 	}
-
 }

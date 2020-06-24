@@ -19,7 +19,7 @@ The segments in the URL, in following with the Model-View-Controller approach, u
 3. The third, and any additional segments, represent the ID and any variables that will be passed to the controller.
 
 The :doc:`URI Library <../libraries/uri>` and the :doc:`URL Helper <../helpers/url_helper>` contain functions that make it easy
-to work with your URI data. In addition, your URLs can be remapped using the :doc:`URI Routing <routing>`
+to work with your URI data. In addition, your URLs can be remapped using the :doc:`URI Routing </incoming/routing>`
 feature for more flexibility.
 
 Removing the index.php file
@@ -46,7 +46,7 @@ items:
 	RewriteCond %{REQUEST_FILENAME} !-d
 	RewriteRule ^(.*)$ index.php/$1 [L]
 
-In this example, any HTTP request other than those for existsing directories and existing files is treated as a
+In this example, any HTTP request other than those for existing directories and existing files are treated as a
 request for your index.php file.
 
 .. note:: These specific rules might not work for all server configurations.
@@ -62,7 +62,7 @@ the above Apache configuration:
 .. code-block:: nginx
 
 	location / {
-		try_files $uri $uri/ /index.php/$args;
+		try_files $uri $uri/ /index.php$is_args$args;
 	}
 
 This will first look for a file or directory matching the URI (constructing the full path to each file from the

@@ -1,10 +1,9 @@
 <?php namespace CodeIgniter;
 
-use CodeIgniter\Log\Logger;
-use Config\App;
 use CodeIgniter\HTTP\UserAgent;
-use Tests\Support\Config\MockLogger;
-use Tests\Support\MockCodeIgniter;
+use CodeIgniter\Test\Mock\MockCodeIgniter;
+use CodeIgniter\Validation\Exceptions\ValidationException;
+use Config\App;
 
 /**
  * Exercise our core Controller class.
@@ -13,7 +12,7 @@ use Tests\Support\MockCodeIgniter;
  *
  * @backupGlobals enabled
  */
-class ControllerTest extends \CIUnitTestCase
+class ControllerTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	/**
@@ -28,12 +27,14 @@ class ControllerTest extends \CIUnitTestCase
 
 	/**
 	 * Current request.
+	 *
 	 * @var \CodeIgniter\HTTP\Request
 	 */
 	protected $request;
 
 	/**
 	 * Current response.
+	 *
 	 * @var \CodeIgniter\HTTP\Response
 	 */
 	protected $response;
@@ -44,14 +45,14 @@ class ControllerTest extends \CIUnitTestCase
 
 	//--------------------------------------------------------------------
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
-		$this->config = new App();
-		$this->request = new \CodeIgniter\HTTP\IncomingRequest($this->config, new \CodeIgniter\HTTP\URI('https://somwhere.com'), null, new UserAgent());
-		$this->response = new \CodeIgniter\HTTP\Response($this->config);
-		$this->logger = \Config\Services::logger();
+		$this->config      = new App();
+		$this->request     = new \CodeIgniter\HTTP\IncomingRequest($this->config, new \CodeIgniter\HTTP\URI('https://somwhere.com'), null, new UserAgent());
+		$this->response    = new \CodeIgniter\HTTP\Response($this->config);
+		$this->logger      = \Config\Services::logger();
 		$this->codeigniter = new MockCodeIgniter($this->config);
 	}
 
@@ -68,7 +69,7 @@ class ControllerTest extends \CIUnitTestCase
 	public function testConstructorHTTPS()
 	{
 		$original = $_SERVER;
-		$_SERVER = ['HTTPS' => 'on'];
+		$_SERVER  = ['HTTPS' => 'on'];
 		// make sure we can instantiate one
 		$this->controller = new Class() extends Controller
 		{
@@ -86,7 +87,8 @@ class ControllerTest extends \CIUnitTestCase
 		$this->controller = new Controller();
 		$this->controller->initController($this->request, $this->response, $this->logger);
 
-		$this->assertNull($this->controller->cachePage(10));
+		$method = $this->getPrivateMethodInvoker($this->controller, 'cachePage');
+		$this->assertNull($method(10));
 	}
 
 	public function testValidate()
@@ -96,7 +98,61 @@ class ControllerTest extends \CIUnitTestCase
 		$this->controller->initController($this->request, $this->response, $this->logger);
 
 		// and that we can attempt validation, with no rules
-		$this->assertFalse($this->controller->validate([]));
+		$method = $this->getPrivateMethodInvoker($this->controller, 'validate');
+		$this->assertFalse($method([]));
+	}
+
+	public function testValidateWithStringRulesNotFound()
+	{
+		$this->expectException(ValidationException::class);
+
+		// make sure we can instantiate one
+		$this->controller = new Controller();
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
+		$method = $this->getPrivateMethodInvoker($this->controller, 'validate');
+		$this->assertFalse($method('signup'));
+	}
+
+	public function testValidateWithStringRulesFoundReadMessagesFromValidationConfig()
+	{
+		$validation                = config('Validation');
+		$validation->signup        = [
+			'username' => 'required',
+		];
+		$validation->signup_errors = [
+			'username' => [
+				'required' => 'You must choose a username.',
+			],
+		];
+
+		// make sure we can instantiate one
+		$this->controller = new Controller();
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
+		$method = $this->getPrivateMethodInvoker($this->controller, 'validate');
+		$this->assertFalse($method('signup'));
+		$this->assertEquals('You must choose a username.', Services::validation()->getError());
+	}
+
+	public function testValidateWithStringRulesFoundUseMessagesParameter()
+	{
+		$validation         = config('Validation');
+		$validation->signup = [
+			'username' => 'required',
+		];
+
+		// make sure we can instantiate one
+		$this->controller = new Controller();
+		$this->controller->initController($this->request, $this->response, $this->logger);
+
+		$method = $this->getPrivateMethodInvoker($this->controller, 'validate');
+		$this->assertFalse($method('signup', [
+			'username' => [
+				'required' => 'You must choose a username.',
+			],
+		]));
+		$this->assertEquals('You must choose a username.', Services::validation()->getError());
 	}
 
 	//--------------------------------------------------------------------
@@ -104,7 +160,10 @@ class ControllerTest extends \CIUnitTestCase
 	{
 		$this->controller = new Class() extends Controller
 		{
-			protected $helpers = ['cookie', 'text'];
+			protected $helpers = [
+				'cookie',
+				'text',
+			];
 		};
 		$this->controller->initController($this->request, $this->response, $this->logger);
 

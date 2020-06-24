@@ -4,7 +4,7 @@ namespace CodeIgniter\HTTP;
 
 use CodeIgniter\HTTP\Exceptions\HTTPException;
 
-class MessageTest extends \CIUnitTestCase
+class MessageTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	/**
@@ -12,7 +12,7 @@ class MessageTest extends \CIUnitTestCase
 	 */
 	protected $message;
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -21,7 +21,7 @@ class MessageTest extends \CIUnitTestCase
 
 	//--------------------------------------------------------------------
 
-	public function tearDown()
+	public function tearDown(): void
 	{
 		$this->message = null;
 		unset($this->message);
@@ -179,39 +179,45 @@ class MessageTest extends \CIUnitTestCase
 
 	//--------------------------------------------------------------------
 
-	public function  testSetHeaderReplacingHeader()
-
+	public function testSetHeaderReplacingHeader()
 	{
-       		$this->message->setHeader('Accept', 'json');
+		$this->message->setHeader('Accept', 'json');
 
-                $this->assertEquals('json', $this->message->getHeaderLine('Accept'));
+		$this->assertEquals('json', $this->message->getHeaderLine('Accept'));
 	}
 
+	public function testSetHeaderDuplicateSettings()
+	{
+		$this->message->setHeader('Accept', 'json');
+		$this->message->setHeader('Accept', 'xml');
 
-        public function testSetHeaderDuplicateSettings()
-        {
-        	$this->message->setHeader('Accept', 'json');
-        	$this->message->setHeader('Accept', 'xml');
+		$this->assertEquals('xml', $this->message->getHeaderLine('Accept'));
+	}
 
-                $this->assertEquals('xml', $this->message->getHeaderLine('Accept'));
-        }
+	public function testSetHeaderDuplicateSettingsInsensitive()
+	{
+		$this->message->setHeader('Accept', 'json');
+		$this->message->setHeader('accept', 'xml');
 
-        public function testSetHeaderArrayValues()
-        {
-        	$this->message->setHeader('Accept', ['json', 'html', 'xml']);
+		$this->assertEquals('xml', $this->message->getHeaderLine('Accept'));
+	}
 
-                $this->assertEquals('json, html, xml', $this->message->getHeaderLine('Accept'));
-        }
+	public function testSetHeaderArrayValues()
+	{
+		$this->message->setHeader('Accept', ['json', 'html', 'xml']);
+
+			$this->assertEquals('json, html, xml', $this->message->getHeaderLine('Accept'));
+	}
 
 	//--------------------------------------------------------------------
 
 	public function testPopulateHeadersWithoutContentType()
 	{
 		// fail path, if the CONTENT_TYPE doesn't exist
-		$original = $_SERVER;
-		$_SERVER = ['HTTP_ACCEPT_LANGUAGE' => 'en-us,en;q=0.50'];
-		$original_env = getenv("CONTENT_TYPE");
-		putenv("CONTENT_TYPE");
+		$original     = $_SERVER;
+		$_SERVER      = ['HTTP_ACCEPT_LANGUAGE' => 'en-us,en;q=0.50'];
+		$original_env = getenv('CONTENT_TYPE');
+		putenv('CONTENT_TYPE');
 
 		$this->message->populateHeaders();
 
@@ -221,14 +227,16 @@ class MessageTest extends \CIUnitTestCase
 		$_SERVER = $original; // restore so code coverage doesn't break
 	}
 
- 	//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testPopulateHeadersWithoutHTTP()
 	{
 		// fail path, if arguement does't have the HTTP_*
 		$original = $_SERVER;
-		$_SERVER = ['USER_AGENT' => 'Mozilla/5.0 (iPad; U; CPU OS 3_2_1 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Mobile/7B405', 'REQUEST_METHOD' => 'POST'];
-
+		$_SERVER  = [
+			'USER_AGENT'     => 'Mozilla/5.0 (iPad; U; CPU OS 3_2_1 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Mobile/7B405',
+			'REQUEST_METHOD' => 'POST',
+		];
 
 		$this->message->populateHeaders();
 
@@ -243,7 +251,10 @@ class MessageTest extends \CIUnitTestCase
 	{
 		// Success path, if array key is not exists, assign empty string to it's value
 		$original = $_SERVER;
-		$_SERVER = ['CONTENT_TYPE' => 'text/html; charset=utf-8', 'HTTP_ACCEPT_CHARSET' => NULL];
+		$_SERVER  = [
+			'CONTENT_TYPE'        => 'text/html; charset=utf-8',
+			'HTTP_ACCEPT_CHARSET' => null,
+		];
 
 		$this->message->populateHeaders();
 
@@ -258,7 +269,10 @@ class MessageTest extends \CIUnitTestCase
 	{
 		// success path
 		$original = $_SERVER;
-		$_SERVER = ['CONTENT_TYPE' => 'text/html; charset=utf-8', 'HTTP_ACCEPT_LANGUAGE' => 'en-us,en;q=0.50'];
+		$_SERVER  = [
+			'CONTENT_TYPE'         => 'text/html; charset=utf-8',
+			'HTTP_ACCEPT_LANGUAGE' => 'en-us,en;q=0.50',
+		];
 
 		$this->message->populateHeaders();
 

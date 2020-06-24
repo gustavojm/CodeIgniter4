@@ -1,124 +1,173 @@
 <?php namespace CodeIgniter\Session;
 
-use Config\Logger;
-use Tests\Support\Log\TestLogger;
-use Tests\Support\Session\MockSession;
 use CodeIgniter\Session\Handlers\FileHandler;
+use CodeIgniter\Test\Mock\MockSession;
+use CodeIgniter\Test\TestLogger;
+use Config\Logger;
 
 /**
  * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
+ * @preserveGlobalState         disabled
  */
-class SessionTest extends \CIUnitTestCase
+class SessionTest extends \CodeIgniter\Test\CIUnitTestCase
 {
-    public function setUp()
-    {
-        parent::setUp();
+	protected function setUp(): void
+	{
+		parent::setUp();
 
-        $_COOKIE = [];
-        $_SESSION = [];
-    }
+		$_COOKIE  = [];
+		$_SESSION = [];
+	}
 
-    public function tearDown()
-    {
+	public function tearDown(): void
+	{
+	}
 
-    }
+	protected function getInstance($options = [])
+	{
+		$defaults = [
+			'sessionDriver'            => 'CodeIgniter\Session\Handlers\FileHandler',
+			'sessionCookieName'        => 'ci_session',
+			'sessionExpiration'        => 7200,
+			'sessionSavePath'          => null,
+			'sessionMatchIP'           => false,
+			'sessionTimeToUpdate'      => 300,
+			'sessionRegenerateDestroy' => false,
+			'cookieDomain'             => '',
+			'cookiePrefix'             => '',
+			'cookiePath'               => '/',
+			'cookieSecure'             => false,
+		];
 
-    protected function getInstance($options=[])
-    {
-        $defaults = [
-            'sessionDriver' => 'CodeIgniter\Session\Handlers\FileHandler',
-            'sessionCookieName' => 'ci_session',
-            'sessionExpiration' => 7200,
-            'sessionSavePath' => null,
-            'sessionMatchIP' => false,
-            'sessionTimeToUpdate' => 300,
-            'sessionRegenerateDestroy' => false,
-            'cookieDomain' => '',
-            'cookiePrefix' => '',
-            'cookiePath' => '/',
-            'cookieSecure' => false,
-        ];
+		$config = array_merge($defaults, $options);
+		$config = (object) $config;
 
-        $config = array_merge($defaults, $options);
-        $config = (object)$config;
+		$session = new MockSession(new FileHandler($config, '127.0.0.1'), $config);
+		$session->setLogger(new TestLogger(new Logger()));
 
-        $session = new MockSession(new FileHandler($config), $config);
-        $session->setLogger(new TestLogger(new Logger()));
+		return $session;
+	}
 
-        return $session;
-    }
+	public function testSessionSetsRegenerateTime()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-    public function testSessionSetsRegenerateTime()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$this->assertTrue(isset($_SESSION['__ci_last_regenerate']) && ! empty($_SESSION['__ci_last_regenerate']));
+	}
 
-        $this->assertTrue(isset($_SESSION['__ci_last_regenerate']) && ! empty($_SESSION['__ci_last_regenerate']));
-    }
+	public function testWillRegenerateSessionAutomatically()
+	{
+		$session = $this->getInstance();
 
-    public function testWillRegenerateSessionAutomatically()
-    {
-        $session = $this->getInstance();
+		$time                             = time() - 400;
+		$_SESSION['__ci_last_regenerate'] = $time;
+		$session->start();
 
-        $time = time()-400;
-        $_SESSION['__ci_last_regenerate'] = $time;
-        $session->start();
+		$this->assertTrue($session->didRegenerate);
+		$this->assertGreaterThan($time + 90, $_SESSION['__ci_last_regenerate']);
+	}
 
-        $this->assertTrue($session->didRegenerate);
-        $this->assertGreaterThan($time + 90 ,$_SESSION['__ci_last_regenerate']);
-    }
+	public function testCanSetSingleValue()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-    public function testCanSetSingleValue()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->set('foo', 'bar');
 
-        $session->set('foo', 'bar');
+		$this->assertEquals('bar', $_SESSION['foo']);
+	}
 
-        $this->assertEquals('bar', $_SESSION['foo']);
-    }
+	public function testCanSetArray()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-    public function testCanSetArray()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->set([
+			'foo' => 'bar',
+			'bar' => 'baz',
+		]);
 
-        $session->set([
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ]);
+		$this->assertEquals('bar', $_SESSION['foo']);
+		$this->assertEquals('baz', $_SESSION['bar']);
+		$this->assertArrayNotHasKey('__ci_vars', $_SESSION);
+	}
 
-        $this->assertEquals('bar', $_SESSION['foo']);
-        $this->assertEquals('baz', $_SESSION['bar']);
-        $this->assertArrayNotHasKey('__ci_vars', $_SESSION);
-    }
+	// Reference: https://github.com/codeigniter4/CodeIgniter4/issues/1492
+	public function testCanSerializeArray()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-    public function testGetSimpleKey()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$locations = [
+			'AB' => 'Alberta',
+			'BC' => 'British Columbia',
+			'SK' => 'Saskatchewan',
+		];
+		$session->set(['_ci_old_input' => ['location' => $locations]]);
 
-        $session->set('foo', 'bar');
+		$this->assertEquals($locations, $session->get('_ci_old_input')['location']);
+	}
 
-        $this->assertEquals('bar', $session->get('foo'));
-    }
+	public function testGetSimpleKey()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-    public function testGetReturnsNullWhenNotFound()
-    {
-    	$_SESSION = [];
+		$session->set('foo', 'bar');
 
-        $session = $this->getInstance();
-        $session->start();
+		$this->assertEquals('bar', $session->get('foo'));
+	}
 
-        $this->assertNull($session->get('foo'));
-    }
+	public function testGetReturnsNullWhenNotFound()
+	{
+		$_SESSION = [];
 
-    public function testGetReturnsAllWithNoKeys()
+		$session = $this->getInstance();
+		$session->start();
+
+		$this->assertNull($session->get('foo'));
+	}
+
+	public function testGetReturnsNullWhenNotFoundWithXmlHttpRequest()
+	{
+		$_SERVER['HTTP_X_REQUESTED_WITH'] = 'xmlhttprequest';
+		$_SESSION                         = [];
+
+		$session = $this->getInstance();
+		$session->start();
+
+		$this->assertNull($session->get('foo'));
+	}
+
+	public function testGetReturnsEmptyArrayWhenWithXmlHttpRequest()
+	{
+		$_SERVER['HTTP_X_REQUESTED_WITH'] = 'xmlhttprequest';
+		$_SESSION                         = [];
+
+		$session = $this->getInstance();
+		$session->start();
+
+		$this->assertEquals([], $session->get());
+	}
+
+	public function testGetReturnsItemValueisZero()
+	{
+		$_SESSION = [];
+
+		$session = $this->getInstance();
+		$session->start();
+
+		$session->set('foo', (int) 0);
+
+		$this->assertSame((int) 0, $session->get('foo'));
+	}
+
+	public function testGetReturnsAllWithNoKeys()
 	{
 		$_SESSION = [
 			'foo' => 'bar',
-			'bar' => 'baz'
+			'bar' => 'baz',
 		];
 
 		$session = $this->getInstance();
@@ -128,340 +177,369 @@ class SessionTest extends \CIUnitTestCase
 
 		$this->assertTrue(array_key_exists('foo', $result));
 		$this->assertTrue(array_key_exists('bar', $result));
-    }
+	}
 
-    public function testGetAsProperty()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testGetAsProperty()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $session->set('foo', 'bar');
+		$session->set('foo', 'bar');
 
-        $this->assertEquals('bar', $session->foo);
-    }
+		$this->assertEquals('bar', $session->foo);
+	}
 
-    public function testGetAsNormal()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testGetAsNormal()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $session->set('foo', 'bar');
+		$session->set('foo', 'bar');
 
-        $this->assertEquals('bar', $_SESSION['foo']);
-    }
+		$this->assertEquals('bar', $_SESSION['foo']);
+	}
 
-    public function testHasReturnsTrueOnSuccess()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testHasReturnsTrueOnSuccess()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $_SESSION['foo'] = 'bar';
+		$_SESSION['foo'] = 'bar';
 
-        $this->assertTrue($session->has('foo'));
-    }
+		$this->assertTrue($session->has('foo'));
+	}
 
-    public function testHasReturnsFalseOnNotFound()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testHasReturnsFalseOnNotFound()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $_SESSION['foo'] = 'bar';
+		$_SESSION['foo'] = 'bar';
 
-        $this->assertFalse($session->has('bar'));
-    }
+		$this->assertFalse($session->has('bar'));
+	}
 
-    public function testPushNewValueIntoArraySessionValue()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testIssetReturnsTrueOnSuccess()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $session->set('hobbies', ['cooking' => 'baking']);
-        $session->push('hobbies', ['sport'=>'tennis']);
+		$_SESSION['foo'] = 'bar';
 
-        $this->assertEquals(
-            [
-                'cooking' => 'baking',
-                'sport'   => 'tennis',
-            ],
-            $session->get('hobbies')
-        );
-    }
+		$this->assertTrue(isset($session->foo));
+	}
 
-    public function testRemoveActuallyRemoves()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testIssetReturnsFalseOnNotFound()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $_SESSION['foo'] = 'bar';
-        $session->remove('foo');
+		$_SESSION['foo'] = 'bar';
 
-        $this->assertArrayNotHasKey('foo', $_SESSION);
-        $this->assertFalse($session->has('foo'));
-    }
+		$this->assertFalse(isset($session->bar));
+	}
 
-    public function testHasReturnsCanRemoveArray()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testPushNewValueIntoArraySessionValue()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $_SESSION = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$session->set('hobbies', ['cooking' => 'baking']);
+		$session->push('hobbies', ['sport' => 'tennis']);
 
-        $this->assertTrue($session->has('foo'));
+		$this->assertEquals([
+			'cooking' => 'baking',
+			'sport'   => 'tennis',
+		],
+			$session->get('hobbies')
+		);
+	}
 
-        $session->remove(['foo', 'bar']);
+	public function testRemoveActuallyRemoves()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertArrayNotHasKey('foo', $_SESSION);
-        $this->assertArrayNotHasKey('bar', $_SESSION);
-    }
+		$_SESSION['foo'] = 'bar';
+		$session->remove('foo');
 
-    public function testSetMagicMethod()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$this->assertArrayNotHasKey('foo', $_SESSION);
+		$this->assertFalse($session->has('foo'));
+	}
 
-        $session->foo = 'bar';
+	public function testHasReturnsCanRemoveArray()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertArrayHasKey('foo', $_SESSION);
-        $this->assertEquals('bar', $_SESSION['foo']);
-    }
+		$_SESSION = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
 
-    public function testCanFlashData()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$this->assertTrue($session->has('foo'));
 
-        $session->setFlashdata('foo', 'bar');
+		$session->remove(['foo', 'bar']);
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
+		$this->assertArrayNotHasKey('foo', $_SESSION);
+		$this->assertArrayNotHasKey('bar', $_SESSION);
+	}
 
-        // Should reset the 'new' to 'old'
-        $session->start();
+	public function testSetMagicMethod()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertEquals('old', $_SESSION['__ci_vars']['foo']);
+		$session->foo = 'bar';
 
-        // Should no longer be available
-        $session->start();
+		$this->assertArrayHasKey('foo', $_SESSION);
+		$this->assertEquals('bar', $_SESSION['foo']);
+	}
 
-        $this->assertFalse($session->has('foo'));
-    }
+	public function testCanFlashData()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-    public function testCanFlashArray()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setFlashdata('foo', 'bar');
 
-        $session->setFlashdata([
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ]);
+		$this->assertTrue($session->has('foo'));
+		$this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
-        $this->assertTrue($session->has('bar'));
-        $this->assertEquals('new', $_SESSION['__ci_vars']['bar']);
-    }
+		// Should reset the 'new' to 'old'
+		$session->start();
 
-    public function testKeepFlashData()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$this->assertTrue($session->has('foo'));
+		$this->assertEquals('old', $_SESSION['__ci_vars']['foo']);
 
-        $session->setFlashdata('foo', 'bar');
+		// Should no longer be available
+		$session->start();
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
+		$this->assertFalse($session->has('foo'));
+	}
 
-        // Should reset the 'new' to 'old'
-        $session->start();
+	public function testCanFlashArray()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertEquals('old', $_SESSION['__ci_vars']['foo']);
+		$session->setFlashdata([
+			'foo' => 'bar',
+			'bar' => 'baz',
+		]);
 
-        $session->keepFlashdata('foo');
+		$this->assertTrue($session->has('foo'));
+		$this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
+		$this->assertTrue($session->has('bar'));
+		$this->assertEquals('new', $_SESSION['__ci_vars']['bar']);
+	}
 
-        $this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
+	public function testKeepFlashData()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        // Should no longer be available
-        $session->start();
+		$session->setFlashdata('foo', 'bar');
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertEquals('old', $_SESSION['__ci_vars']['foo']);
-    }
+		$this->assertTrue($session->has('foo'));
+		$this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
 
-    public function testUnmarkFlashDataRemovesData()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		// Should reset the 'new' to 'old'
+		$session->start();
 
-        $session->setFlashdata('foo', 'bar');
-        $session->set('bar', 'baz');
+		$this->assertTrue($session->has('foo'));
+		$this->assertEquals('old', $_SESSION['__ci_vars']['foo']);
 
-        $this->assertTrue($session->has('foo'));
-        $this->assertArrayHasKey('foo', $_SESSION['__ci_vars']);
+		$session->keepFlashdata('foo');
 
-        $session->unmarkFlashdata('foo');
+		$this->assertEquals('new', $_SESSION['__ci_vars']['foo']);
 
-        // Should still be here
-        $this->assertTrue($session->has('foo'));
-        // but no longer marked as flash
-        $this->assertFalse(isset($_SESSION['__ci_vars']['foo']));
-    }
+		// Should no longer be available
+		$session->start();
 
-    public function testGetFlashKeysOnlyReturnsFlashKeys()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$this->assertTrue($session->has('foo'));
+		$this->assertEquals('old', $_SESSION['__ci_vars']['foo']);
+	}
 
-        $session->setFlashdata('foo', 'bar');
-        $session->set('bar', 'baz');
+	public function testUnmarkFlashDataRemovesData()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $keys = $session->getFlashKeys();
+		$session->setFlashdata('foo', 'bar');
+		$session->set('bar', 'baz');
 
-        $this->assertContains('foo', $keys);
-        $this->assertNotContains('bar', $keys);
-    }
+		$this->assertTrue($session->has('foo'));
+		$this->assertArrayHasKey('foo', $_SESSION['__ci_vars']);
 
-    public function testSetTempDataWorks()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->unmarkFlashdata('foo');
 
-        $session->setTempdata('foo', 'bar', 300);
-        $this->assertGreaterThanOrEqual($_SESSION['__ci_vars']['foo'], time() + 300);
-    }
+		// Should still be here
+		$this->assertTrue($session->has('foo'));
+		// but no longer marked as flash
+		$this->assertFalse(isset($_SESSION['__ci_vars']['foo']));
+	}
 
-    public function testSetTempDataArrayMultiTTL()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testGetFlashKeysOnlyReturnsFlashKeys()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $time = time();
+		$session->setFlashdata('foo', 'bar');
+		$session->set('bar', 'baz');
 
-        $session->setTempdata([
-            'foo' => 300,
-            'bar' => 400,
-            'baz' => 100
-        ]);
+		$keys = $session->getFlashKeys();
 
-        $this->assertLessThanOrEqual($_SESSION['__ci_vars']['foo'], $time + 300);
-        $this->assertLessThanOrEqual($_SESSION['__ci_vars']['bar'], $time + 400);
-        $this->assertLessThanOrEqual($_SESSION['__ci_vars']['baz'], $time + 100);
-    }
+		$this->assertContains('foo', $keys);
+		$this->assertNotContains('bar', $keys);
+	}
 
-    public function testSetTempDataArraySingleTTL()
-    {
-        $session = $this->getInstance();
-        $session->start();
+	public function testSetTempDataWorks()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $time = time();
+		$session->setTempdata('foo', 'bar', 300);
+		$this->assertGreaterThanOrEqual($_SESSION['__ci_vars']['foo'], time() + 300);
+	}
 
-        $session->setTempdata(['foo', 'bar', 'baz'], null, 200);
+	public function testSetTempDataArrayMultiTTL()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertLessThanOrEqual($_SESSION['__ci_vars']['foo'], $time + 200);
-        $this->assertLessThanOrEqual($_SESSION['__ci_vars']['bar'], $time + 200);
-        $this->assertLessThanOrEqual($_SESSION['__ci_vars']['baz'], $time + 200);
-    }
+		$time = time();
 
-    /**
-     * @group single
-     */
-    public function testGetTestDataReturnsAll()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setTempdata([
+			'foo' => 300,
+			'bar' => 400,
+			'baz' => 100,
+		]);
 
-        $data = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$this->assertLessThanOrEqual($_SESSION['__ci_vars']['foo'], $time + 300);
+		$this->assertLessThanOrEqual($_SESSION['__ci_vars']['bar'], $time + 400);
+		$this->assertLessThanOrEqual($_SESSION['__ci_vars']['baz'], $time + 100);
+	}
 
-        $session->setTempdata($data);
-        $session->set('baz', 'ballywhoo');
+	public function testSetTempDataArraySingleTTL()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertEquals($data, $session->getTempdata());
-    }
+		$time = time();
 
-    public function testGetTestDataReturnsSingle()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setTempdata(['foo', 'bar', 'baz'], null, 200);
 
-        $data = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$this->assertLessThanOrEqual($_SESSION['__ci_vars']['foo'], $time + 200);
+		$this->assertLessThanOrEqual($_SESSION['__ci_vars']['bar'], $time + 200);
+		$this->assertLessThanOrEqual($_SESSION['__ci_vars']['baz'], $time + 200);
+	}
 
-        $session->setTempdata($data);
+	/**
+	 * @group single
+	 */
+	public function testGetTestDataReturnsAll()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertEquals('bar', $session->getTempdata('foo'));
-    }
+		$data = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
 
-    public function testRemoveTempDataActuallyDeletes()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setTempdata($data);
+		$session->set('baz', 'ballywhoo');
 
-        $data = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$this->assertEquals($data, $session->getTempdata());
+	}
 
-        $session->setTempdata($data);
-        $session->removeTempdata('foo');
+	public function testGetTestDataReturnsSingle()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertEquals(['bar' => 'baz'], $session->getTempdata());
-    }
+		$data = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
 
-    public function testUnMarkTempDataSingle()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setTempdata($data);
 
-        $data = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$this->assertEquals('bar', $session->getTempdata('foo'));
+	}
 
-        $session->setTempdata($data);
-        $session->unmarkTempdata('foo');
+	public function testRemoveTempDataActuallyDeletes()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertEquals(['bar' => 'baz'], $session->getTempdata());
-    }
+		$data = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
 
-    public function testUnMarkTempDataArray()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setTempdata($data);
+		$session->removeTempdata('foo');
 
-        $data = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$this->assertEquals(['bar' => 'baz'], $session->getTempdata());
+	}
 
-        $session->setTempdata($data);
-        $session->unmarkTempdata(['foo', 'bar']);
+	public function testUnMarkTempDataSingle()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertEquals([], $session->getTempdata());
-    }
+		$data = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
 
-    public function testGetTempdataKeys()
-    {
-        $session = $this->getInstance();
-        $session->start();
+		$session->setTempdata($data);
+		$session->unmarkTempdata('foo');
 
-        $data = [
-            'foo' => 'bar',
-            'bar' => 'baz'
-        ];
+		$this->assertEquals(['bar' => 'baz'], $session->getTempdata());
+	}
 
-        $session->setTempdata($data);
-        $session->set('baz', 'ballywhoo');
+	public function testUnMarkTempDataArray()
+	{
+		$session = $this->getInstance();
+		$session->start();
 
-        $this->assertEquals(['foo', 'bar'], $session->getTempKeys());
-    }
+		$data = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
+
+		$session->setTempdata($data);
+		$session->unmarkTempdata(['foo', 'bar']);
+
+		$this->assertEquals([], $session->getTempdata());
+	}
+
+	public function testGetTempdataKeys()
+	{
+		$session = $this->getInstance();
+		$session->start();
+
+		$data = [
+			'foo' => 'bar',
+			'bar' => 'baz',
+		];
+
+		$session->setTempdata($data);
+		$session->set('baz', 'ballywhoo');
+
+		$this->assertEquals(['foo', 'bar'], $session->getTempKeys());
+	}
+
+	public function testGetDotKey()
+	{
+		$session = $this->getInstance();
+		$session->start();
+
+		$session->set('test.1', 'value');
+
+		$this->assertEquals('value', $session->get('test.1'));
+	}
 }

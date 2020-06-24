@@ -1,29 +1,81 @@
-<?php namespace CodeIgniter\Test;
+<?php
+/**
+ * CodeIgniter
+ *
+ * An open source application development framework for PHP
+ *
+ * This content is released under the MIT License (MIT)
+ *
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
+ * @filesource
+ */
+
+namespace CodeIgniter\Test;
 
 use CodeIgniter\HTTP\RedirectResponse;
-use CodeIgniter\HTTP\Response;
+use CodeIgniter\HTTP\ResponseInterface;
+use Config\Format;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\DOM\DOMParser;
 
+/**
+ * Assertions for a response
+ */
 class FeatureResponse extends TestCase
 {
+
 	/**
-	 * @var \CodeIgniter\HTTP\Response
+	 * The response.
+	 *
+	 * @var \CodeIgniter\HTTP\ResponseInterface
 	 */
 	public $response;
 
 	/**
-	 * @var \Tests\Support\DOM\DOMParser
+	 * DOM for the body.
+	 *
+	 * @var \CodeIgniter\Test\DOMParser
 	 */
 	protected $domParser;
 
-	public function __construct(Response $response = null)
+	/**
+	 * Constructor.
+	 *
+	 * @param ResponseInterface $response
+	 */
+	public function __construct(ResponseInterface $response = null)
 	{
 		$this->response = $response;
 
-		if (is_string($this->response->getBody()))
+		$body = $response->getBody();
+		if (! empty($body) && is_string($body))
 		{
-			$this->domParser = (new DOMParser())->withString($this->response->getBody());
+			$this->domParser = (new DOMParser())->withString($body);
 		}
 	}
 
@@ -35,19 +87,21 @@ class FeatureResponse extends TestCase
 	 * Boils down the possible responses into a bolean valid/not-valid
 	 * response type.
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	public function isOK(): bool
 	{
+		$status = $this->response->getStatusCode();
+
 		// Only 200 and 300 range status codes
 		// are considered valid.
-		if ($this->response->getStatusCode() >= 400 || $this->response->getStatusCode() < 200)
+		if ($status >= 400 || $status < 200)
 		{
 			return false;
 		}
 
-		// Empty bodies are not considered valid.
-		if (empty($this->response->getBody()))
+		// Empty bodies are not considered valid, unless in redirects
+		if ($status < 300 && empty($this->response->getBody()))
 		{
 			return false;
 		}
@@ -58,7 +112,7 @@ class FeatureResponse extends TestCase
 	/**
 	 * Returns whether or not the Response was a redirect response
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	public function isRedirect(): bool
 	{
@@ -72,19 +126,43 @@ class FeatureResponse extends TestCase
 	 */
 	public function assertRedirect()
 	{
-		$this->assertTrue($this->isRedirect(), "Response is not a RedirectResponse.");
+		$this->assertTrue($this->isRedirect(), 'Response is not a RedirectResponse.');
+	}
+
+	/**
+	 * Returns the URL set for redirection.
+	 *
+	 * @return string|null
+	 */
+	public function getRedirectUrl(): ?string
+	{
+		if (! $this->isRedirect())
+		{
+			return null;
+		}
+
+		if ($this->response->hasHeader('Location'))
+		{
+			return $this->response->getHeaderLine('Location');
+		}
+		elseif ($this->response->hasHeader('Refresh'))
+		{
+			return str_replace('0;url=', '', $this->response->getHeaderLine('Refresh'));
+		}
+
+		return null;
 	}
 
 	/**
 	 * Asserts that the status is a specific value.
 	 *
-	 * @param int $code
+	 * @param integer $code
 	 *
 	 * @throws \Exception
 	 */
 	public function assertStatus(int $code)
 	{
-		$this->assertEquals($code, (int)$this->response->getStatusCode());
+		$this->assertEquals($code, (int) $this->response->getStatusCode());
 	}
 
 	/**
@@ -187,10 +265,6 @@ class FeatureResponse extends TestCase
 	 * Assert the Response does not have the specified cookie set.
 	 *
 	 * @param string $key
-	 * @param null   $value
-	 * @param string $prefix
-	 *
-	 * @throws \Exception
 	 */
 	public function assertCookieMissing(string $key)
 	{
@@ -273,7 +347,7 @@ class FeatureResponse extends TestCase
 	 *
 	 * @throws \Exception
 	 */
-	public function assertSeeLink(string $text, string $details=null)
+	public function assertSeeLink(string $text, string $details = null)
 	{
 		$this->assertTrue($this->domParser->seeLink($text, $details), "Do no see anchor tag with the text {$text} in response.");
 	}
@@ -286,7 +360,7 @@ class FeatureResponse extends TestCase
 	 *
 	 * @throws \Exception
 	 */
-	public function assertSeeInField(string $field, string $value=null)
+	public function assertSeeInField(string $field, string $value = null)
 	{
 		$this->assertTrue($this->domParser->seeInField($field, $value), "Do no see input named {$field} with value {$value} in response.");
 	}
@@ -298,7 +372,7 @@ class FeatureResponse extends TestCase
 	/**
 	 * Returns the response's body as JSON
 	 *
-	 * @return mixed|string
+	 * @return mixed|false
 	 */
 	public function getJSON()
 	{
@@ -306,14 +380,14 @@ class FeatureResponse extends TestCase
 
 		if (is_null($response))
 		{
-			$this->fail('The Response contained invalid JSON.');
+			return false;
 		}
 
 		return $response;
 	}
 
 	/**
-	 *
+	 * Test that the response contains a matching JSON fragment.
 	 *
 	 * @param array $fragment
 	 *
@@ -323,7 +397,7 @@ class FeatureResponse extends TestCase
 	{
 		$json = json_decode($this->getJSON(), true);
 
-		$this->assertArraySubset($fragment, $json, false, "Response does not contain a matching JSON fragment.");
+		$this->assertArraySubset($fragment, $json, false, 'Response does not contain a matching JSON fragment.');
 	}
 
 	/**
@@ -340,14 +414,13 @@ class FeatureResponse extends TestCase
 
 		if (is_array($test))
 		{
-			$config    = new \Config\Format();
+			$config    = new Format();
 			$formatter = $config->getFormatter('application/json');
 			$test      = $formatter->format($test);
 		}
 
-		$this->assertJsonStringEqualsJsonString($test, $json, "Response does not contain matching JSON.");
+		$this->assertJsonStringEqualsJsonString($test, $json, 'Response does not contain matching JSON.');
 	}
-
 
 	//--------------------------------------------------------------------
 	// XML Methods
@@ -362,4 +435,5 @@ class FeatureResponse extends TestCase
 	{
 		return $this->response->getXML();
 	}
+
 }

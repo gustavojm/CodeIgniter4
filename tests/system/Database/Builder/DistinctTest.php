@@ -1,15 +1,15 @@
 <?php namespace Builder;
 
 use CodeIgniter\Database\BaseBuilder;
-use Tests\Support\Database\MockConnection;
+use CodeIgniter\Test\Mock\MockConnection;
 
-class DistinctTest extends \CIUnitTestCase
+class DistinctTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 	protected $db;
 
 	//--------------------------------------------------------------------
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -24,7 +24,7 @@ class DistinctTest extends \CIUnitTestCase
 
 		$builder->select('country')->distinct();
 
-		$expectedSQL   = "SELECT DISTINCT \"country\" FROM \"user\"";
+		$expectedSQL = 'SELECT DISTINCT "country" FROM "user"';
 
 		$this->assertEquals($expectedSQL, str_replace("\n", ' ', $builder->getCompiledSelect()));
 	}

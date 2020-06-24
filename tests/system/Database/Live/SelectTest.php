@@ -2,7 +2,6 @@
 
 use CodeIgniter\Test\CIDatabaseTestCase;
 
-
 /**
  * @group DatabaseLive
  */
@@ -49,7 +48,7 @@ class SelectTest extends CIDatabaseTestCase
 
 	public function testSelectMax()
 	{
-	    $result = $this->db->table('job')->selectMax('id')->get()->getRow();
+		$result = $this->db->table('job')->selectMax('id')->get()->getRow();
 
 		$this->assertEquals(4, $result->id);
 	}
@@ -85,14 +84,14 @@ class SelectTest extends CIDatabaseTestCase
 
 	public function testSelectAvg()
 	{
-	    $result = $this->db->table('job')->selectAvg('id')->get()->getRow();
+		$result = $this->db->table('job')->selectAvg('id')->get()->getRow();
 
 		$this->assertEquals(2.5, $result->id);
 	}
 
 	//--------------------------------------------------------------------
 
-	public function testSelectAvgWitAlias()
+	public function testSelectAvgWithAlias()
 	{
 		$result = $this->db->table('job')->selectAvg('id', 'xam')->get()->getRow();
 
@@ -110,7 +109,7 @@ class SelectTest extends CIDatabaseTestCase
 
 	//--------------------------------------------------------------------
 
-	public function testSelectSumWitAlias()
+	public function testSelectSumWithAlias()
 	{
 		$result = $this->db->table('job')->selectSum('id', 'xam')->get()->getRow();
 
@@ -119,9 +118,27 @@ class SelectTest extends CIDatabaseTestCase
 
 	//--------------------------------------------------------------------
 
+	public function testSelectCount()
+	{
+		$result = $this->db->table('job')->selectCount('id')->get()->getRow();
+
+		$this->assertEquals(4, $result->id);
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testSelectCountWithAlias()
+	{
+		$result = $this->db->table('job')->selectCount('id', 'xam')->get()->getRow();
+
+		$this->assertEquals(4, $result->xam);
+	}
+
+	//--------------------------------------------------------------------
+
 	public function testSelectDistinctWorkTogether()
 	{
-	    $users = $this->db->table('user')->select('country')->distinct()->get()->getResult();
+		$users = $this->db->table('user')->select('country')->distinct()->get()->getResult();
 
 		$this->assertCount(3, $users);
 	}
@@ -136,4 +153,42 @@ class SelectTest extends CIDatabaseTestCase
 	}
 
 	//--------------------------------------------------------------------
+
+	/**
+	 * @see https://github.com/codeigniter4/CodeIgniter4/issues/1226
+	 */
+	public function testSelectWithMultipleWheresOnSameColumn()
+	{
+		$users = $this->db->table('user')
+			->where('id', 1)
+			->orWhereIn('id', [2, 3])
+			->get()
+			->getResultArray();
+
+		$this->assertCount(3, $users);
+
+		foreach ($users as $user)
+		{
+			$this->assertTrue(in_array($user['id'], [1, 2, 3]));
+		}
+	}
+
+	/**
+	 * @see https://github.com/codeigniter4/CodeIgniter4/issues/1226
+	 */
+	public function testSelectWithMultipleWheresOnSameColumnAgain()
+	{
+		$users = $this->db->table('user')
+						  ->whereIn('id', [1, 2])
+						  ->orWhere('id', 3)
+						  ->get()
+						  ->getResultArray();
+
+		$this->assertCount(3, $users);
+
+		foreach ($users as $user)
+		{
+			$this->assertTrue(in_array($user['id'], [1, 2, 3]));
+		}
+	}
 }

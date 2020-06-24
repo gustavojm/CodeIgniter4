@@ -1,15 +1,15 @@
 <?php namespace Builder;
 
 use CodeIgniter\Database\BaseBuilder;
-use Tests\Support\Database\MockConnection;
+use CodeIgniter\Test\Mock\MockConnection;
 
-class TruncateTest extends \CIUnitTestCase
+class TruncateTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 	protected $db;
 
 	//--------------------------------------------------------------------
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -22,9 +22,9 @@ class TruncateTest extends \CIUnitTestCase
 	{
 		$builder = new BaseBuilder('user', $this->db);
 
-		$expectedSQL   = "TRUNCATE \"user\"";
+		$expectedSQL = 'TRUNCATE "user"';
 
-		$this->assertEquals($expectedSQL, $builder->truncate(true));
+		$this->assertEquals($expectedSQL, $builder->testMode()->truncate());
 	}
 
 	//--------------------------------------------------------------------

@@ -1,14 +1,21 @@
 <?php namespace CodeIgniter\Files;
 
 use org\bovigo\vfs\vfsStream;
-use org\bovigo\vfs\vfsStreamDirectory;
 
-class FileWithVfsTest extends \CIUnitTestCase
+class FileWithVfsTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
+	// For VFS stuff
 	protected $root;
+	protected $path;
+	protected $start;
 
-	public function setup()
+	/**
+	 * @var \CodeIgniter\Files\File
+	 */
+	protected $file;
+
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -16,10 +23,10 @@ class FileWithVfsTest extends \CIUnitTestCase
 		$this->path = '_support/Files/';
 		vfsStream::copyFromFileSystem(TESTPATH . $this->path, $this->root);
 		$this->start = $this->root->url() . '/';
-		$this->file = new File($this->start . 'able/apple.php');
+		$this->file  = new File($this->start . 'able/apple.php');
 	}
 
-	public function tearDown()
+	public function tearDown(): void
 	{
 		parent::tearDown();
 
@@ -106,16 +113,27 @@ class FileWithVfsTest extends \CIUnitTestCase
 		$this->assertFalse($this->root->hasChild('able/apple.php'));
 	}
 
-	/**
-	 * @expectedException \Exception
-	 */
 	public function testMoveFailure()
 	{
+		$this->expectException('Exception');
+
 		$here = $this->root->url();
 
-		chmod($here,400); // make a read-only folder
+		chmod($here, 400); // make a read-only folder
 		$destination = $here . '/charlie';
 		$this->file->move($destination); // try to move our file there
 	}
 
+	/**
+	 * @see https://github.com/codeigniter4/CodeIgniter4/issues/1782
+	 */
+	public function testMoveReturnsNewInstance()
+	{
+		$destination = $this->start . 'baker';
+		$file        = $this->file->move($destination);
+
+		$this->assertTrue($this->root->hasChild('baker/apple.php'));
+		$this->assertInstanceOf(File::class, $file);
+		$this->assertEquals($destination . '/apple.php', $file->getPathname());
+	}
 }

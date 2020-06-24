@@ -1,10 +1,10 @@
-<?php namespace CodeIgniter\Test;
+<?php
+namespace CodeIgniter\Test;
 
-use Tests\Support\DOM\DOMParser;
-
-class DOMParserTest extends CIUnitTestCase
+class DOMParserTest extends \CodeIgniter\Test\CIUnitTestCase
 {
-	public function setUp()
+
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -18,11 +18,11 @@ class DOMParserTest extends CIUnitTestCase
 	{
 		$dom = new DOMParser();
 
-		$html = '<div><h1>Hello</h1></div>';
-		$expected = '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">' ."\n"
-			.'<html><body><div><h1>Hello</h1></div></body></html>';
+		$html     = '<div><h1>Hello</h1></div>';
+		$expected = '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">' . "\n"
+				. '<html><body><div><h1>Hello</h1></div></body></html>';
 
-		$this->assertEquals($expected."\n", $dom->withString($html)->getBody());
+		$this->assertEquals($expected . "\n", $dom->withString($html)->getBody());
 	}
 
 	public function testParseSelectorWithID()
@@ -65,7 +65,6 @@ class DOMParserTest extends CIUnitTestCase
 		$this->assertEquals('a', $selector['tag']);
 		$this->assertEquals(['href' => 'http://example.com'], $selector['attr']);
 	}
-
 
 	public function testSeeText()
 	{
@@ -336,4 +335,41 @@ class DOMParserTest extends CIUnitTestCase
 
 		$this->assertTrue($dom->seeCheckboxIsChecked('.btn'));
 	}
+
+	public function testWithFile()
+	{
+		$dom = new DOMParser();
+
+		$filename = APPPATH . 'index.html';
+
+		$dom->withFile($filename);
+		$this->assertTrue($dom->see('Directory access is forbidden.'));
+	}
+
+	public function testWithNotFile()
+	{
+		$dom = new DOMParser();
+
+		$filename = APPPATH . 'bogus.html';
+
+		$this->expectException(\InvalidArgumentException::class);
+		$dom->withFile($filename);
+	}
+
+	public function testSeeAttribute()
+	{
+		$dom = new DOMParser();
+
+		$path     = '[ name = user ]';
+		$selector = $dom->parseSelector($path);
+
+		$this->assertEquals(['name' => 'user'], $selector['attr']);
+
+		$html = '<html><body><div name="user">George</div></body></html>';
+		$dom->withString($html);
+
+		$this->assertTrue($dom->see(null, '*[ name = user ]'));
+		$this->assertFalse($dom->see(null, '*[ name = notthere ]'));
+	}
+
 }

@@ -7,8 +7,9 @@ fast and dynamic caching. All but file-based caching require specific
 server requirements, and a Fatal Exception will be thrown if server
 requirements are not met.
 
-.. contents:: Page Contents
-	:local:
+.. contents::
+    :local:
+    :depth: 2
 
 *************
 Example Usage
@@ -39,13 +40,13 @@ You can grab an instance of the cache engine directly through the Services class
 Configuring the Cache
 =====================
 
-All configuration for the cache engine is done in **application/Config/Cache.php**. In that file,
+All configuration for the cache engine is done in **app/Config/Cache.php**. In that file,
 the following items are available.
 
 **$handler**
 
 The is the name of the handler that should be used as the primary handler when starting up the engine.
-Available names are: dummy, file, memcached, redis, wincache.
+Available names are: dummy, file, memcached, redis, predis, wincache.
 
 **$backupHandler**
 
@@ -68,31 +69,31 @@ This is an array of servers that will be used when using the ``Memcache(d)`` han
 
 **$redis**
 
-The settings for the Redis server that you wish to use when using the ``Redis`` handler.
+The settings for the Redis server that you wish to use when using the ``Redis`` and ``Predis`` handler.
 
-===============
+***************
 Class Reference
-===============
+***************
 
-.. php:method:: isSupported()
+.. php:method:: ⠀isSupported()
 
 	:returns:	TRUE if supported, FALSE if not
 	:rtype:	bool
 
-.. php:method:: get($key)
+.. php:method:: ⠀get($key)
 
 	:param	string	$key: Cache item name
-	:returns:	Item value or FALSE if not found
+	:returns:	Item value or NULL if not found
 	:rtype:	mixed
 
 	This method will attempt to fetch an item from the cache store. If the
-	item does not exist, the method will return FALSE.
+	item does not exist, the method will return NULL.
 
 	Example::
 
 		$foo = $cache->get('my_cached_item');
 
-.. php:method:: save($key, $data[, $ttl = 60[, $raw = FALSE]])
+.. php:method:: ⠀save($key, $data[, $ttl = 60[, $raw = FALSE]])
 
 	:param	string	$key: Cache item name
 	:param	mixed	$data: the data to save
@@ -111,7 +112,7 @@ Class Reference
 .. note:: The ``$raw`` parameter is only utilized by Memcache,
 		  in order to allow usage of ``increment()`` and ``decrement()``.
 
-.. php:method:: delete($key)
+.. php:method:: ⠀delete($key)
 
 	:param	string	$key: name of cached item
 	:returns:	TRUE on success, FALSE on failure
@@ -124,7 +125,7 @@ Class Reference
 
 		$cache->delete('cache_item_id');
 
-.. php:method:: increment($key[, $offset = 1])
+.. php:method:: ⠀increment($key[, $offset = 1])
 
 	:param	string	$key: Cache ID
 	:param	int	$offset: Step/value to add
@@ -141,7 +142,7 @@ Class Reference
 
 		$cache->increment('iterator', 3); // 'iterator' is now 6
 
-.. php:method:: decrement($key[, $offset = 1])
+.. php:method:: ⠀decrement($key[, $offset = 1])
 
 	:param	string	$key: Cache ID
 	:param	int	$offset: Step/value to reduce by
@@ -158,7 +159,7 @@ Class Reference
 
 		$cache->decrement('iterator', 2); // 'iterator' is now 3
 
-.. php:method:: clean()
+.. php:method:: ⠀clean()
 
 	:returns:	TRUE on success, FALSE on failure
 	:rtype:	bool
@@ -170,7 +171,7 @@ Class Reference
 
 			$cache->clean();
 
-.. php:method:: cache_info()
+.. php:method:: ⠀cache_info()
 
 	:returns:	Information on the entire cache database
 	:rtype:	mixed
@@ -184,7 +185,7 @@ Class Reference
 .. note:: The information returned and the structure of the data is dependent
 		  on which adapter is being used.
 
-.. php:method:: getMetadata($key)
+.. php:method:: ⠀getMetadata($key)
 
 	:param	string	$key: Cache item name
 	:returns:	Metadata for the cached item
@@ -211,16 +212,23 @@ File-based Caching
 Unlike caching from the Output Class, the driver file-based caching
 allows for pieces of view files to be cached. Use this with care, and
 make sure to benchmark your application, as a point can come where disk
-I/O will negate positive gains by caching.
+I/O will negate positive gains by caching. This requires a writable cache directory to be really writable (0777).
 
 =================
 Memcached Caching
 =================
 
-Multiple Memcached servers can be specified in the cache configuration file.
+Memcached servers can be specified in the cache configuration file. Available options are::
+
+	public $memcached = [
+		'host'   => '127.0.0.1',
+		'port'   => 11211,
+		'weight' => 1,
+		'raw'    => false,
+	];
 
 For more information on Memcached, please see
-`http://php.net/memcached <http://php.net/memcached>`_.
+`https://www.php.net/memcached <https://www.php.net/memcached>`_.
 
 ================
 WinCache Caching
@@ -229,7 +237,7 @@ WinCache Caching
 Under Windows, you can also utilize the WinCache driver.
 
 For more information on WinCache, please see
-`http://php.net/wincache <http://php.net/wincache>`_.
+`https://www.php.net/wincache <https://www.php.net/wincache>`_.
 
 =============
 Redis Caching
@@ -238,16 +246,30 @@ Redis Caching
 Redis is an in-memory key-value store which can operate in LRU cache mode.
 To use it, you need `Redis server and phpredis PHP extension <https://github.com/phpredis/phpredis>`_.
 
-Config options to connect to redis server must be stored in the application/config/redis.php file.
-Available options are::
+Config options to connect to redis server stored in the cache configuration file. Available options are::
 
-	$config['host'] = '127.0.0.1';
-	$config['password'] = NULL;
-	$config['port'] = 6379;
-	$config['timeout'] = 0;
+	public $redis = [
+		'host'     => '127.0.0.1',
+		'password' => null,
+		'port'     => 6379,
+		'timeout'  => 0,
+		'database' => 0,
+	];
 
 For more information on Redis, please see
-`http://redis.io <http://redis.io>`_.
+`https://redis.io <https://redis.io>`_.
+
+==============
+Predis Caching
+==============
+
+Predis is a flexible and feature-complete PHP client library for the Redis key-value store.
+To use it, from the command line inside your project root::
+
+    composer require predis/predis
+
+For more information on Redis, please see
+`https://github.com/nrk/predis <https://github.com/nrk/predis>`_.
 
 ===========
 Dummy Cache

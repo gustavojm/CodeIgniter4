@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Debug\Toolbar\Collectors;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,16 +28,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package      CodeIgniter
- * @author       CodeIgniter Dev Team
- * @copyright    2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license      https://opensource.org/licenses/MIT	MIT License
- * @link         https://codeigniter.com
- * @since        Version 4.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
-use CodeIgniter\Config\Services;
+
+namespace CodeIgniter\Debug\Toolbar\Collectors;
+
 use CodeIgniter\View\RendererInterface;
+use Config\Services;
 
 /**
  * Views collector
@@ -48,7 +52,7 @@ class Views extends BaseCollector
 	 * Whether this collector has data that can
 	 * be displayed in the Timeline.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $hasTimeline = true;
 
@@ -56,7 +60,7 @@ class Views extends BaseCollector
 	 * Whether this collector needs to display
 	 * content in a tab or not.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $hasTabContent = false;
 
@@ -64,7 +68,7 @@ class Views extends BaseCollector
 	 * Whether this collector needs to display
 	 * a label or not.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $hasLabel = true;
 
@@ -72,7 +76,7 @@ class Views extends BaseCollector
 	 * Whether this collector has data that
 	 * should be shown in the Vars tab.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $hasVarData = true;
 
@@ -86,6 +90,7 @@ class Views extends BaseCollector
 
 	/**
 	 * Instance of the Renderer service
+	 *
 	 * @var RendererInterface
 	 */
 	protected $viewer;
@@ -104,7 +109,7 @@ class Views extends BaseCollector
 	 */
 	public function __construct()
 	{
-		$this->viewer = Services::renderer(null, true);
+		$this->viewer = Services::renderer();
 	}
 
 	//--------------------------------------------------------------------
@@ -113,7 +118,7 @@ class Views extends BaseCollector
 	 * Child classes should implement this to return the timeline data
 	 * formatted for correct usage.
 	 *
-	 * @return mixed
+	 * @return array
 	 */
 	protected function formatTimelineData(): array
 	{
@@ -121,13 +126,13 @@ class Views extends BaseCollector
 
 		$rows = $this->viewer->getPerformanceData();
 
-		foreach ($rows as $name => $info)
+		foreach ($rows as $info)
 		{
 			$data[] = [
-				'name'		 => 'View: ' . $info['view'],
-				'component'	 => 'Views',
-				'start'		 => $info['start'],
-				'duration'	 => $info['end'] - $info['start']
+				'name'      => 'View: ' . $info['view'],
+				'component' => 'Views',
+				'start'     => $info['start'],
+				'duration'  => $info['end'] - $info['start'],
 			];
 		}
 
@@ -152,12 +157,12 @@ class Views extends BaseCollector
 	 *      ],
 	 *  ];
 	 *
-	 * @return null
+	 * @return array
 	 */
-	public function getVarData()
+	public function getVarData(): array
 	{
 		return [
-			'View Data' => $this->viewer->getData()
+			'View Data' => $this->viewer->getData(),
 		];
 	}
 
@@ -166,9 +171,9 @@ class Views extends BaseCollector
 	/**
 	 * Returns a count of all views.
 	 *
-	 * @return int
+	 * @return integer
 	 */
-	public function getBadgeValue()
+	public function getBadgeValue(): int
 	{
 		return count($this->viewer->getPerformanceData());
 	}
@@ -183,6 +188,5 @@ class Views extends BaseCollector
 	public function icon(): string
 	{
 		return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAADeSURBVEhL7ZSxDcIwEEWNYA0YgGmgyAaJLTcUaaBzQQEVjMEabBQxAdw53zTHiThEovGTfnE/9rsoRUxhKLOmaa6Uh7X2+UvguLCzVxN1XW9x4EYHzik033Hp3X0LO+DaQG8MDQcuq6qao4qkHuMgQggLvkPLjqh00ZgFDBacMJYFkuwFlH1mshdkZ5JPJERA9JpI6xNCBESvibQ+IURA9JpI6xNCBESvibQ+IURA9DTsuHTOrVFFxixgB/eUFlU8uKJ0eDBFOu/9EvoeKnlJS2/08Tc8NOwQ8sIfMeYFjqKDjdU2sp4AAAAASUVORK5CYII=';
-
 	}
 }

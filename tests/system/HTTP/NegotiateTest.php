@@ -4,7 +4,7 @@ namespace CodeIgniter\HTTP;
 
 use Config\App;
 
-class NegotiateTest extends \CIUnitTestCase
+class NegotiateTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	/**
@@ -17,7 +17,7 @@ class NegotiateTest extends \CIUnitTestCase
 	 */
 	protected $negotiate;
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -28,7 +28,7 @@ class NegotiateTest extends \CIUnitTestCase
 
 	//--------------------------------------------------------------------
 
-	public function tearDown()
+	public function tearDown(): void
 	{
 		$this->request = $this->negotiate = null;
 		unset($this->request, $this->negotiate);
@@ -138,6 +138,17 @@ class NegotiateTest extends \CIUnitTestCase
 	}
 
 	//--------------------------------------------------------------------
+
+	/**
+	 * @see https://github.com/codeigniter4/CodeIgniter4/issues/2774
+	 */
+	public function testAcceptLanguageMatchesBroadly()
+	{
+		$this->request->setHeader('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7');
+
+		$this->assertEquals('fr', $this->negotiate->language(['fr', 'en']));
+	}
+
 	public function testBestMatchEmpty()
 	{
 		$this->expectException(Exceptions\HTTPException::class);
@@ -146,28 +157,44 @@ class NegotiateTest extends \CIUnitTestCase
 
 	public function testBestMatchNoHeader()
 	{
-		$this->request->setHeader('Accept','');
+		$this->request->setHeader('Accept', '');
 		$this->assertEquals('', $this->negotiate->media(['apple', 'banana'], true));
 		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'banana/yellow'], false));
 	}
 
 	public function testBestMatchNotAcceptable()
 	{
-		$this->request->setHeader('Accept','popcorn/cheddar');
-		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'banana/yellow'],false));
+		$this->request->setHeader('Accept', 'popcorn/cheddar');
+		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'banana/yellow'], false));
+		$this->assertEquals('banana/yellow', $this->negotiate->media(['banana/yellow', 'apple/mac'], false));
 	}
 
 	public function testBestMatchFirstSupported()
 	{
-		$this->request->setHeader('Accept','popcorn/cheddar, */*');
-		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'banana/yellow'],false));
+		$this->request->setHeader('Accept', 'popcorn/cheddar, */*');
+		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'banana/yellow'], false));
 	}
 
 	public function testBestMatchLowQuality()
 	{
-		$this->request->setHeader('Accept','popcorn/cheddar;q=0, apple/mac, */*');
-		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'popcorn/cheddar'],false));
-		$this->assertEquals('apple/mac', $this->negotiate->media(['popcorn/cheddar','apple/mac'],false));
+		$this->request->setHeader('Accept', 'popcorn/cheddar;q=0, apple/mac, */*');
+		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'popcorn/cheddar'], false));
+		$this->assertEquals('apple/mac', $this->negotiate->media(['popcorn/cheddar', 'apple/mac'], false));
+	}
+
+	public function testBestMatchOnlyLowQuality()
+	{
+		$this->request->setHeader('Accept', 'popcorn/cheddar;q=0');
+		// the first supported should be returned, since nothing will make us happy
+		$this->assertEquals('apple/mac', $this->negotiate->media(['apple/mac', 'popcorn/cheddar'], false));
+		$this->assertEquals('popcorn/cheddar', $this->negotiate->media(['popcorn/cheddar', 'apple/mac'], false));
+	}
+
+	public function testParameterMatching()
+	{
+		$this->request->setHeader('Accept', 'popcorn/cheddar;a=0;b=1');
+		$this->assertEquals('popcorn/cheddar;a=2', $this->negotiate->media(['popcorn/cheddar;a=2'], false));
+		$this->assertEquals('popcorn/cheddar;a=0', $this->negotiate->media(['popcorn/cheddar;a=0', 'popcorn/cheddar;a=2;b=1'], false));
 	}
 
 }

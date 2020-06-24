@@ -1,5 +1,5 @@
 <?php
-namespace CodeIgniter\HTTP\Files;
+
 
 /**
  * CodeIgniter
@@ -8,7 +8,8 @@ namespace CodeIgniter\HTTP\Files;
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,14 +29,16 @@ namespace CodeIgniter\HTTP\Files;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package      CodeIgniter
- * @author       CodeIgniter Dev Team
- * @copyright    2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license      https://opensource.org/licenses/MIT	MIT License
- * @link         https://codeigniter.com
- * @since        Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
+
+namespace CodeIgniter\HTTP\Files;
 
 /**
  * Class FileCollection
@@ -88,31 +91,55 @@ class FileCollection
 
 		if ($this->hasFile($name))
 		{
-
 			if (strpos($name, '.') !== false)
 			{
-				$name = explode('.', $name);
+				$name         = explode('.', $name);
 				$uploadedFile = $this->getValueDotNotationSyntax($name, $this->files);
-				if ($uploadedFile instanceof \CodeIgniter\HTTP\Files\UploadedFile)
-				{
-					return $uploadedFile;
-				}
-
-				return null;
+				return ($uploadedFile instanceof UploadedFile) ?
+					 $uploadedFile : null;
 			}
 
 			if (array_key_exists($name, $this->files))
 			{
 				$uploadedFile = $this->files[$name];
-				if ($uploadedFile instanceof \CodeIgniter\HTTP\Files\UploadedFile)
-				{
-					return $uploadedFile;
-				}
+				return  ($uploadedFile instanceof UploadedFile) ?
+					$uploadedFile : null;
+			}
+		}
 
-				return null;
+		return null;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Verify if a file exist in the collection of uploaded files and is have been uploaded with multiple option.
+	 *
+	 * @param string $name
+	 *
+	 * @return array|null
+	 */
+	public function getFileMultiple(string $name)
+	{
+		$this->populateFiles();
+
+		if ($this->hasFile($name))
+		{
+			if (strpos($name, '.') !== false)
+			{
+				$name         = explode('.', $name);
+				$uploadedFile = $this->getValueDotNotationSyntax($name, $this->files);
+
+				return (is_array($uploadedFile) && ($uploadedFile[0] instanceof UploadedFile)) ?
+					$uploadedFile : null;
 			}
 
-			return null;
+			if (array_key_exists($name, $this->files))
+			{
+				$uploadedFile = $this->files[$name];
+				return (is_array($uploadedFile) && ($uploadedFile[0] instanceof UploadedFile)) ?
+					$uploadedFile : null;
+			}
 		}
 
 		return null;
@@ -126,7 +153,7 @@ class FileCollection
 	 *
 	 * @param string $fileID The name of the uploaded file (from the input)
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	public function hasFile(string $fileID): bool
 	{
@@ -140,7 +167,7 @@ class FileCollection
 
 			foreach ($segments as $segment)
 			{
-				if ( ! array_key_exists($segment, $el))
+				if (! array_key_exists($segment, $el))
 				{
 					return false;
 				}
@@ -196,13 +223,13 @@ class FileCollection
 	 */
 	protected function createFileObject(array $array)
 	{
-		if ( ! isset($array['name']))
+		if (! isset($array['name']))
 		{
 			$output = [];
 
 			foreach ($array as $key => $values)
 			{
-				if ( ! is_array($values))
+				if (! is_array($values))
 				{
 					continue;
 				}
@@ -243,26 +270,26 @@ class FileCollection
 			{
 				$pointer = &$output[$name];
 
-				if ( ! is_array($value))
+				if (! is_array($value))
 				{
 					$pointer[$field] = $value;
 					continue;
 				}
 
-				$stack = [&$pointer];
+				$stack    = [&$pointer];
 				$iterator = new \RecursiveIteratorIterator(
 						new \RecursiveArrayIterator($value), \RecursiveIteratorIterator::SELF_FIRST
 				);
 
-				foreach ($iterator as $key => $value)
+				foreach ($iterator as $key => $val)
 				{
 					array_splice($stack, $iterator->getDepth() + 1);
 					$pointer = &$stack[count($stack) - 1];
 					$pointer = &$pointer[$key];
 					$stack[] = &$pointer;
-					if ( ! $iterator->hasChildren())
+					if (! $iterator->hasChildren())
 					{
-						$pointer[$field] = $value;
+						$pointer[$field] = $val;
 					}
 				}
 			}
@@ -281,9 +308,9 @@ class FileCollection
 	 *
 	 * @return mixed
 	 */
-	protected function getValueDotNotationSyntax($index, $value)
+	protected function getValueDotNotationSyntax(array $index, array $value)
 	{
-		if (is_array($index) && ! empty($index))
+		if (! empty($index))
 		{
 			$current_index = array_shift($index);
 		}
@@ -292,12 +319,7 @@ class FileCollection
 			return $this->getValueDotNotationSyntax($index, $value[$current_index]);
 		}
 
-		if (isset($value[$current_index]))
-		{
-			return $value[$current_index];
-		}
-
-		return null;
+		return (isset($value[$current_index])) ? $value[$current_index] : null;
 	}
 
 }

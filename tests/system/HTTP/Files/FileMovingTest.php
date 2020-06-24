@@ -1,32 +1,41 @@
 <?php
 namespace CodeIgniter\HTTP\Files;
 
-use org\bovigo\vfs\vfsStream;
-use org\bovigo\vfs\vfsStreamDirectory;
 use CodeIgniter\HTTP\Exceptions\HTTPException;
+use org\bovigo\vfs\vfsStream;
 
-class FileMovingTest extends \CIUnitTestCase
+class FileMovingTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
-		$this->root	 = vfsStream::setup();
-		$this->path	 = '_support/Files/';
+		$this->root = vfsStream::setup();
+		$this->path = '_support/Files/';
 		vfsStream::copyFromFileSystem(TESTPATH . $this->path, $this->root);
 		$this->start = $this->root->url() . '/';
+
+		$this->destination = $this->start . 'destination';
+		if (is_dir($this->destination))
+		{
+			rmdir($this->destination);
+		}
 
 		$_FILES = [];
 	}
 
-	public function tearDown()
+	public function tearDown(): void
 	{
 		parent::tearDown();
-
 		$this->root = null;
-		if (is_dir('/tmp/destination'))
-			rmdir('/tmp/destination');
+
+		// cleanup folder being left behind (why?)
+		$leftover = WRITEPATH . 'uploads/vfs:';
+		if (is_dir($leftover))
+		{
+			rrmdir($leftover);
+		}
 	}
 
 	//--------------------------------------------------------------------
@@ -36,19 +45,19 @@ class FileMovingTest extends \CIUnitTestCase
 		$finalFilename = 'fileA';
 
 		$_FILES = [
-			'userfile1'	 => [
-				'name'		 => $finalFilename . '.txt',
-				'type'		 => 'text/plain',
-				'size'		 => 124,
-				'tmp_name'	 => '/tmp/fileA.txt',
-				'error'		 => 0
+			'userfile1' => [
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/plain',
+				'size'     => 124,
+				'tmp_name' => '/tmp/fileA.txt',
+				'error'    => 0,
 			],
-			'userfile2'	 => [
-				'name'		 => 'fileA.txt',
-				'type'		 => 'text/csv',
-				'size'		 => 248,
-				'tmp_name'	 => '/tmp/fileB.txt',
-				'error'		 => 0
+			'userfile2' => [
+				'name'     => 'fileA.txt',
+				'type'     => 'text/csv',
+				'size'     => 248,
+				'tmp_name' => '/tmp/fileB.txt',
+				'error'    => 0,
 			],
 		];
 
@@ -57,7 +66,7 @@ class FileMovingTest extends \CIUnitTestCase
 		$this->assertTrue($collection->hasFile('userfile1'));
 		$this->assertTrue($collection->hasFile('userfile2'));
 
-		$destination = $this->root->url() . '/destination';
+		$destination = $this->destination;
 
 		// Create the destination if not exists
 		is_dir($destination) || mkdir($destination, 0777, true);
@@ -79,26 +88,26 @@ class FileMovingTest extends \CIUnitTestCase
 		$finalFilename = 'file_with_delimiters_underscore';
 
 		$_FILES = [
-			'userfile1'	 => [
-				'name'		 => $finalFilename . '.txt',
-				'type'		 => 'text/plain',
-				'size'		 => 124,
-				'tmp_name'	 => '/tmp/fileA.txt',
-				'error'		 => 0
+			'userfile1' => [
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/plain',
+				'size'     => 124,
+				'tmp_name' => '/tmp/fileA.txt',
+				'error'    => 0,
 			],
-			'userfile2'	 => [
-				'name'		 => $finalFilename . '.txt',
-				'type'		 => 'text/csv',
-				'size'		 => 248,
-				'tmp_name'	 => '/tmp/fileB.txt',
-				'error'		 => 0
+			'userfile2' => [
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/csv',
+				'size'     => 248,
+				'tmp_name' => '/tmp/fileB.txt',
+				'error'    => 0,
 			],
-			'userfile3'	 => [
-				'name'		 => $finalFilename . '.txt',
-				'type'		 => 'text/csv',
-				'size'		 => 248,
-				'tmp_name'	 => '/tmp/fileC.txt',
-				'error'		 => 0
+			'userfile3' => [
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/csv',
+				'size'     => 248,
+				'tmp_name' => '/tmp/fileC.txt',
+				'error'    => 0,
 			],
 		];
 
@@ -108,7 +117,7 @@ class FileMovingTest extends \CIUnitTestCase
 		$this->assertTrue($collection->hasFile('userfile2'));
 		$this->assertTrue($collection->hasFile('userfile3'));
 
-		$destination = $this->root->url() . '/destination';
+		$destination = $this->destination;
 
 		// Create the destination if not exists
 		is_dir($destination) || mkdir($destination, 0777, true);
@@ -133,11 +142,11 @@ class FileMovingTest extends \CIUnitTestCase
 
 		$_FILES = [
 			'userfile1' => [
-				'name'		 => $finalFilename . '.txt',
-				'type'		 => 'text/plain',
-				'size'		 => 124,
-				'tmp_name'	 => '/tmp/fileA.txt',
-				'error'		 => 0
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/plain',
+				'size'     => 124,
+				'tmp_name' => '/tmp/fileA.txt',
+				'error'    => 0,
 			],
 		];
 
@@ -145,7 +154,7 @@ class FileMovingTest extends \CIUnitTestCase
 
 		$this->assertTrue($collection->hasFile('userfile1'));
 
-		$destination = $this->root->url() . '/destination';
+		$destination = $this->destination;
 
 		// Create the destination if not exists
 		is_dir($destination) || mkdir($destination, 0777, true);
@@ -160,17 +169,17 @@ class FileMovingTest extends \CIUnitTestCase
 
 	//--------------------------------------------------------------------
 
-	public function testAlreadyMoved()
+	public function testStore()
 	{
 		$finalFilename = 'fileA';
 
 		$_FILES = [
 			'userfile1' => [
-				'name'		 => $finalFilename . '.txt',
-				'type'		 => 'text/plain',
-				'size'		 => 124,
-				'tmp_name'	 => '/tmp/fileA.txt',
-				'error'		 => 0
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/plain',
+				'size'     => 124,
+				'tmp_name' => '/tmp/fileA.txt',
+				'error'    => 0,
 			],
 		];
 
@@ -178,7 +187,39 @@ class FileMovingTest extends \CIUnitTestCase
 
 		$this->assertTrue($collection->hasFile('userfile1'));
 
-		$destination = $this->root->url() . '/destination';
+		$destination = $this->destination;
+
+		// Create the destination if not exists
+		is_dir($destination) || mkdir($destination, 0777, true);
+
+		$file = $collection->getFile('userfile1');
+
+		$this->assertInstanceOf(UploadedFile::class, $file);
+		$path = $file->store($destination, $file->getName());
+		$this->assertEquals($destination . '/fileA.txt', $path);
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testAlreadyMoved()
+	{
+		$finalFilename = 'fileA';
+
+		$_FILES = [
+			'userfile1' => [
+				'name'     => $finalFilename . '.txt',
+				'type'     => 'text/plain',
+				'size'     => 124,
+				'tmp_name' => '/tmp/fileA.txt',
+				'error'    => 0,
+			],
+		];
+
+		$collection = new FileCollection();
+
+		$this->assertTrue($collection->hasFile('userfile1'));
+
+		$destination = $this->destination;
 
 		// Create the destination if not exists
 		is_dir($destination) || mkdir($destination, 0777, true);
@@ -198,19 +239,18 @@ class FileMovingTest extends \CIUnitTestCase
 	{
 		$_FILES = [
 			'userfile' => [
-				'name'		 => 'someFile.txt',
-				'type'		 => 'text/plain',
-				'size'		 => '124',
-				'tmp_name'	 => '/tmp/myTempFile.txt',
-				'error'		 => UPLOAD_ERR_INI_SIZE
-			]
+				'name'     => 'someFile.txt',
+				'type'     => 'text/plain',
+				'size'     => '124',
+				'tmp_name' => '/tmp/myTempFile.txt',
+				'error'    => UPLOAD_ERR_INI_SIZE,
+			],
 		];
 
-		$destination = $this->root->url() . '/destination';
-		// don't create the folder, so setPath() is invoked.
+		$destination = $this->destination;
 
-		$collection	 = new FileCollection();
-		$file		 = $collection->getFile('userfile');
+		$collection = new FileCollection();
+		$file       = $collection->getFile('userfile');
 
 		$this->expectException(HTTPException::class);
 		$file->move($destination, $file->getName(), false);
@@ -222,20 +262,21 @@ class FileMovingTest extends \CIUnitTestCase
 	{
 		$_FILES = [
 			'userfile' => [
-				'name'		 => 'someFile.txt',
-				'type'		 => 'text/plain',
-				'size'		 => '124',
-				'tmp_name'	 => '/tmp/myTempFile.txt',
-				'error'		 => 0,
-			]
+				'name'     => 'someFile.txt',
+				'type'     => 'text/plain',
+				'size'     => '124',
+				'tmp_name' => '/tmp/myTempFile.txt',
+				'error'    => 0,
+			],
 		];
 
-		$destination = '/tmp/destination';
+		$destination = $this->destination;
+
 		// Create the destination and make it read only
 		is_dir($destination) || mkdir($destination, 0400, true);
 
-		$collection	 = new FileCollection();
-		$file		 = $collection->getFile('userfile');
+		$collection = new FileCollection();
+		$file       = $collection->getFile('userfile');
 
 		$this->expectException(HTTPException::class);
 		$file->move($destination, $file->getName(), false);
@@ -253,7 +294,7 @@ class FileMovingTest extends \CIUnitTestCase
 
 function is_uploaded_file($filename)
 {
-	if ( ! file_exists($filename))
+	if (! file_exists($filename))
 	{
 		file_put_contents($filename, 'data');
 	}
@@ -268,5 +309,28 @@ function is_uploaded_file($filename)
 
 function move_uploaded_file($filename, $destination)
 {
-		return copy($filename, $destination);
+	copy($filename, $destination);
+	unlink($filename);
+}
+
+function rrmdir($src)
+{
+	$dir = opendir($src);
+	while (false !== ( $file = readdir($dir)))
+	{
+		if (( $file !== '.' ) && ( $file !== '..' ))
+		{
+			$full = $src . '/' . $file;
+			if (is_dir($full))
+			{
+				rrmdir($full);
+			}
+			else
+			{
+				unlink($full);
+			}
+		}
+	}
+	closedir($dir);
+	rmdir($src);
 }

@@ -1,13 +1,13 @@
 <?php namespace CodeIgniter\Validation;
 
-use CodeIgniter\Validation\Exceptions\ValidationException;
-use Config\Services;
-use Config\App;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\URI;
 use CodeIgniter\HTTP\UserAgent;
+use CodeIgniter\Validation\Exceptions\ValidationException;
+use Config\App;
+use Config\Services;
 
-class ValidationTest extends \CIUnitTestCase
+class ValidationTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	/**
@@ -15,35 +15,51 @@ class ValidationTest extends \CIUnitTestCase
 	 */
 	protected $validation;
 	protected $config = [
-		'ruleSets'		 => [
+		'ruleSets'      => [
 			\CodeIgniter\Validation\Rules::class,
 			\CodeIgniter\Validation\FormatRules::class,
 			\CodeIgniter\Validation\FileRules::class,
 			\CodeIgniter\Validation\CreditCardRules::class,
 			\Tests\Support\Validation\TestRules::class,
 		],
-		'groupA'		 => [
+		'groupA'        => [
 			'foo' => 'required|min_length[5]',
 		],
-		'groupA_errors'	 => [
+		'login'         => [
+			'username' => [
+				'label'  => 'Username',
+				'rules'  => 'required',
+				'errors' => [
+					'required' => 'custom username required error msg.',
+				],
+			],
+			'password' => [
+				'label'  => 'Password',
+				'rules'  => 'required',
+				'errors' => [
+					'required' => 'custom password required error msg.',
+				],
+			],
+		],
+		'groupA_errors' => [
 			'foo' => [
 				'min_length' => 'Shame, shame. Too short.',
 			],
 		],
-		'groupX'		 => 'Not an array, so not a real group',
-		'templates'		 => [
-			'list'	 => 'CodeIgniter\Validation\Views\list',
-			'single' => 'CodeIgniter\Validation\Views\single'
+		'groupX'        => 'Not an array, so not a real group',
+		'templates'     => [
+			'list'   => 'CodeIgniter\Validation\Views\list',
+			'single' => 'CodeIgniter\Validation\Views\single',
 		],
 	];
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
-		Services::reset();
+		Services::reset(true);
 
 		$this->validation = new Validation((object) $this->config, \Config\Services::renderer());
 		$this->validation->reset();
@@ -51,13 +67,13 @@ class ValidationTest extends \CIUnitTestCase
 		$_FILES = [];
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testSetRulesStoresRules()
 	{
 		$rules = [
-			'foo'	 => 'bar|baz',
-			'bar'	 => 'baz|belch',
+			'foo' => 'bar|baz',
+			'bar' => 'baz|belch',
 		];
 
 		$this->validation->setRules($rules);
@@ -65,7 +81,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals($rules, $this->validation->getRules());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRunReturnsFalseWithNothingToDo()
 	{
@@ -74,7 +90,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertFalse($this->validation->run([]));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRunDoesTheBasics()
 	{
@@ -89,7 +105,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertFalse($this->validation->run($data));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRunReturnsLocalizedErrors()
 	{
@@ -105,7 +121,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals('Validation.is_numeric', $this->validation->getError('foo'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRunWithCustomErrors()
 	{
@@ -121,20 +137,20 @@ class ValidationTest extends \CIUnitTestCase
 
 		$this->validation->setRules([
 			'foo' => 'is_numeric',
-				], $messages);
+		], $messages);
 
 		$this->validation->run($data);
 		$this->assertEquals('Nope. Not a number.', $this->validation->getError('foo'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testCheck()
 	{
 		$this->assertFalse($this->validation->check('notanumber', 'is_numeric'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testCheckLocalizedError()
 	{
@@ -142,17 +158,17 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals('Validation.is_numeric', $this->validation->getError());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testCheckCustomError()
 	{
 		$this->validation->check('notanumber', 'is_numeric', [
-			'is_numeric' => 'Nope. Not a number.'
+			'is_numeric' => 'Nope. Not a number.',
 		]);
 		$this->assertEquals('Nope. Not a number.', $this->validation->getError());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testGetErrors()
 	{
@@ -169,7 +185,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals(['foo' => 'Validation.is_numeric'], $this->validation->getErrors());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testGetErrorsWhenNone()
 	{
@@ -188,7 +204,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals([], $this->validation->getErrors());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testSetErrors()
 	{
@@ -201,12 +217,12 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals(['foo' => 'Nadda'], $this->validation->getErrors());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRulesReturnErrors()
 	{
 		$this->validation->setRules([
-			'foo' => 'customError'
+			'foo' => 'customError',
 		]);
 
 		$this->validation->run(['foo' => 'bar']);
@@ -214,7 +230,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals(['foo' => 'My lovely error'], $this->validation->getErrors());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testGroupsReadFromConfig()
 	{
@@ -226,7 +242,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals('Shame, shame. Too short.', $this->validation->getError('foo'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testGroupsReadFromConfigValid()
 	{
@@ -237,16 +253,16 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertTrue($this->validation->run($data, 'groupA'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testGetRuleGroup()
 	{
 		$this->assertEquals([
 			'foo' => 'required|min_length[5]',
-				], $this->validation->getRuleGroup('groupA'));
+		], $this->validation->getRuleGroup('groupA'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testGetRuleGroupException()
 	{
@@ -254,7 +270,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->getRuleGroup('groupZ');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testSetRuleGroup()
 	{
@@ -262,10 +278,10 @@ class ValidationTest extends \CIUnitTestCase
 
 		$this->assertEquals([
 			'foo' => 'required|min_length[5]',
-				], $this->validation->getRules());
+		], $this->validation->getRules());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testSetRuleGroupException()
 	{
@@ -274,7 +290,35 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->setRuleGroup('groupZ');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
+
+	public function testSetRuleGroupWithCustomErrorMessage()
+	{
+		$this->validation->reset()->setRuleGroup('login');
+		$this->validation->run([
+			'username' => 'codeigniter',
+		]);
+
+		$this->assertEquals([
+			'password' => 'custom password required error msg.',
+		], $this->validation->getErrors());
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testRunGroupWithCustomErrorMessage()
+	{
+		$this->validation->reset();
+		$this->validation->run([
+			'username' => 'codeigniter',
+		], 'login');
+
+		$this->assertEquals([
+			'password' => 'custom password required error msg.',
+		], $this->validation->getErrors());
+	}
+
+	//--------------------------------------------------------------------
 
 	/**
 	 * @dataProvider rulesSetupProvider
@@ -287,69 +331,94 @@ class ValidationTest extends \CIUnitTestCase
 
 		$this->validation->setRules([
 			'foo' => $rules,
-				], $errors);
+		], $errors);
 
 		$this->validation->run($data);
 
 		$this->assertEquals($expected, $this->validation->getError('foo'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function rulesSetupProvider()
 	{
 		return [
 			[
 				'min_length[10]',
-				'The foo field must be at least 10 characters in length.'
+				'The foo field must be at least 10 characters in length.',
 			],
 			[
 				'min_length[10]',
 				'The foo field is very short.',
-				['foo' => ['min_length' => 'The {field} field is very short.']]
+				['foo' => ['min_length' => 'The {field} field is very short.']],
 			],
 			[
 				['min_length[10]'],
-				'The foo field must be at least 10 characters in length.'
+				'The foo field must be at least 10 characters in length.',
 			],
 			[
 				['min_length[10]'],
 				'The foo field is very short.',
-				['foo' => ['min_length' => 'The {field} field is very short.']]
+				['foo' => ['min_length' => 'The {field} field is very short.']],
 			],
 			[
 				['rules' => 'min_length[10]'],
-				'The foo field must be at least 10 characters in length.'
-			],
-			[
-				['label' => 'Foo Bar', 'rules' => 'min_length[10]'],
-				'The Foo Bar field must be at least 10 characters in length.'
-			],
-			[
-				['label' => 'Foo Bar', 'rules' => 'min_length[10]'],
-				'The Foo Bar field is very short.',
-				['foo' => ['min_length' => 'The {field} field is very short.']]
+				'The foo field must be at least 10 characters in length.',
 			],
 			[
 				[
-					'label'	 => 'Foo Bar',
-					'rules'	 => 'min_length[10]',
-					'errors' => ['min_length' => 'The {field} field is very short.']
+					'label' => 'Foo Bar',
+					'rules' => 'min_length[10]',
+				],
+				'The Foo Bar field must be at least 10 characters in length.',
+			],
+			[
+				[
+					'label' => 'Foo Bar',
+					'rules' => 'min_length[10]',
+				],
+				'The Foo Bar field is very short.',
+				['foo' => ['min_length' => 'The {field} field is very short.']],
+			],
+			[
+				[
+					'label'  => 'Foo Bar',
+					'rules'  => 'min_length[10]',
+					'errors' => ['min_length' => 'The {field} field is very short.'],
 				],
 				'The Foo Bar field is very short.',
 			],
 		];
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
+
+	public function testSetRulesRemovesErrorsArray()
+	{
+		$rules = [
+			'foo' => [
+				'label'  => 'Foo Bar',
+				'rules'  => 'min_length[10]',
+				'errors' => [
+					'min_length' => 'The {field} field is very short.',
+				],
+			],
+		];
+
+		$this->validation->setRules($rules, []);
+
+		$this->validation->run(['foo' => 'abc']);
+
+		$this->assertEquals('The Foo Bar field is very short.', $this->validation->getError('foo'));
+	}
 
 	public function testInvalidRule()
 	{
 		$this->expectException(ValidationException::class);
 
 		$rules = [
-			'foo'	 => 'bar|baz',
-			'bar'	 => 'baz|belch',
+			'foo' => 'bar|baz',
+			'bar' => 'baz|belch',
 		];
 		$this->validation->setRules($rules);
 
@@ -359,19 +428,19 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->run($data);
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testRawInput()
 	{
 		$rawstring = 'username=admin001&role=administrator&usepass=0';
 
 		$data = [
-			'username'	 => 'admin001',
-			'role'		 => 'administrator',
-			'usepass'	 => 0
+			'username' => 'admin001',
+			'role'     => 'administrator',
+			'usepass'  => 0,
 		];
 
-		$config = new App();
+		$config          = new App();
 		$config->baseURL = 'http://example.com';
 
 		$request = new IncomingRequest($config, new URI(), $rawstring, new UserAgent());
@@ -386,7 +455,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals([], $this->validation->getErrors());
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testHasRule()
 	{
@@ -395,7 +464,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertTrue($this->validation->hasRule('foo'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testNotARealGroup()
 	{
@@ -404,7 +473,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->getRuleGroup('groupX');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testBadTemplate()
 	{
@@ -412,7 +481,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->listErrors('obviouslyBadTemplate');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testShowNonError()
 	{
@@ -425,7 +494,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertEquals('', $this->validation->showError('bogus'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testShowBadTemplate()
 	{
@@ -436,17 +505,17 @@ class ValidationTest extends \CIUnitTestCase
 		]);
 		$this->validation->setError('foo', 'Nadda');
 
-		$this->assertEquals('We should never get here', $this->validation->showError('foo','bogus_template'));
+		$this->assertEquals('We should never get here', $this->validation->showError('foo', 'bogus_template'));
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testNoRuleSetsSetup()
 	{
 		$this->expectException(ValidationException::class);
 
 		$this->config['ruleSets'] = null;
-		$this->validation = new Validation((object) $this->config, \Config\Services::renderer());
+		$this->validation         = new Validation((object) $this->config, \Config\Services::renderer());
 		$this->validation->reset();
 
 		$data = [
@@ -456,12 +525,11 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->run($data);
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testNotCustomRuleGroup()
 	{
 		$this->expectException(ValidationException::class);
-
 
 		$data = [
 			'foo' => '',
@@ -470,12 +538,11 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->run($data, 'GeorgeRules');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testNotRealCustomRule()
 	{
 		$this->expectException(ValidationException::class);
-
 
 		$data = [
 			'foo' => '',
@@ -484,7 +551,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->validation->run($data, 'groupX');
 	}
 
-//--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
 	public function testHasError()
 	{
@@ -501,8 +568,7 @@ class ValidationTest extends \CIUnitTestCase
 		$this->assertTrue($this->validation->hasError('foo'));
 	}
 
-//--------------------------------------------------------------------
-
+	//--------------------------------------------------------------------
 
 	public function testSplitRulesTrue()
 	{
@@ -535,7 +601,7 @@ class ValidationTest extends \CIUnitTestCase
 	}
 
 	/**
-	 * @see https://github.com/bcit-ci/CodeIgniter4/issues/1201
+	 * @see https://github.com/codeigniter4/CodeIgniter4/issues/1201
 	 */
 	public function testSplitNotRegex()
 	{
@@ -550,8 +616,311 @@ class ValidationTest extends \CIUnitTestCase
 	{
 		$method = $this->getPrivateMethodInvoker($this->validation, 'splitRules');
 
-		$result = $method('required|regex_match[/^[0-9]{4}[\-\.\/][0-9]{2}[\-\.\/][0-9]{2}/]|max_length[10]');
+		$result = $method('required|regex_match[/^[0-9]{4}[\-\.\[\/][0-9]{2}[\-\.\[\/][0-9]{2}/]|max_length[10]');
 
-		$this->assertEquals('regex_match[/^[0-9]{4}[\-\.\/][0-9]{2}[\-\.\/][0-9]{2}/]', $result[1]);
+		$this->assertEquals('regex_match[/^[0-9]{4}[\-\.\[\/][0-9]{2}[\-\.\[\/][0-9]{2}/]', $result[1]);
 	}
+
+	//--------------------------------------------------------------------
+
+	public function testTagReplacement()
+	{
+		// data
+		$data = [
+			'Username' => 'Pizza',
+		];
+
+		// rules
+		$this->validation->setRules([
+			'Username' => 'min_length[6]',
+		], [
+			'Username' => [
+				'min_length' => 'Supplied value ({value}) for {field} must have at least {param} characters.',
+			],
+		]);
+
+		// run validation
+		$this->validation->run($data);
+
+		// $errors should contain an associative array
+		$errors = $this->validation->getErrors();
+
+		// if "Username" doesn't exist in errors
+		if (! isset($errors['Username']))
+		{
+			$this->fail('Unable to find "Username"');
+		}
+
+		// expected error message
+		$expected = 'Supplied value (Pizza) for Username must have at least 6 characters.';
+
+		// check if they are the same!
+		$this->assertEquals($expected, $errors['Username']);
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * @dataProvider arrayFieldDataProvider
+	 */
+	public function testRulesForArrayField($body, $rules, $results)
+	{
+		$config          = new App();
+		$config->baseURL = 'http://example.com';
+
+		$request = new IncomingRequest($config, new URI(), http_build_query($body), new UserAgent());
+		$request->setMethod('post');
+
+		$this->validation->setRules($rules);
+		$this->validation->withRequest($request)
+			->run($body);
+		$this->assertEquals($results, $this->validation->getErrors());
+	}
+
+	//--------------------------------------------------------------------
+
+	public function arrayFieldDataProvider()
+	{
+		return [
+			'all_rules_should_pass'                                            => [
+				'body'    => [
+					'foo' => [
+						'a',
+						'b',
+						'c',
+					],
+				],
+				'rules'   => [
+					'foo.0' => 'required|alpha|max_length[2]',
+					'foo.1' => 'required|alpha|max_length[2]',
+					'foo.2' => 'required|alpha|max_length[2]',
+				],
+				'results' => [],
+			],
+			'first_field_will_return_required_error'                           => [
+				'body'    => [
+					'foo' => [
+						'',
+						'b',
+						'c',
+					],
+				],
+				'rules'   => [
+					'foo.0' => 'required|alpha|max_length[2]',
+					'foo.1' => 'required|alpha|max_length[2]',
+					'foo.2' => 'required|alpha|max_length[2]',
+				],
+				'results' => [
+					'foo.0' => 'The foo.0 field is required.',
+				],
+			],
+			'first_and second_field_will_return_required_and_min_length_error' => [
+				'body'    => [
+					'foo' => [
+						'',
+						'b',
+						'c',
+					],
+				],
+				'rules'   => [
+					'foo.0' => 'required|alpha|max_length[2]',
+					'foo.1' => 'required|alpha|min_length[2]|max_length[4]',
+					'foo.2' => 'required|alpha|max_length[2]',
+				],
+				'results' => [
+					'foo.0' => 'The foo.0 field is required.',
+					'foo.1' => 'The foo.1 field must be at least 2 characters in length.',
+				],
+			],
+		];
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testRulesForSingleRuleWithAsteriskWillReturnNoError()
+	{
+		$config          = new App();
+		$config->baseURL = 'http://example.com';
+
+		$_REQUEST = [
+			'id_user'   => [
+				1,
+				3,
+			],
+			'name_user' => [
+				'abc123',
+				'xyz098',
+			],
+		];
+
+		$request = new IncomingRequest($config, new URI(), 'php://input', new UserAgent());
+		$request->setMethod('post');
+
+		$this->validation->setRules([
+			'id_user.*'   => 'numeric',
+			'name_user.*' => 'alpha_numeric',
+		]);
+
+		$this->validation->withRequest($request)
+			->run();
+		$this->assertEquals([], $this->validation->getErrors());
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testRulesForSingleRuleWithAsteriskWillReturnError()
+	{
+		$config          = new App();
+		$config->baseURL = 'http://example.com';
+
+		$_REQUEST = [
+			'id_user'   => [
+				'1dfd',
+				3,
+			],
+			'name_user' => [
+				123,
+				'xyz098',
+			],
+		];
+
+		$request = new IncomingRequest($config, new URI(), 'php://input', new UserAgent());
+		$request->setMethod('post');
+
+		$this->validation->setRules([
+			'id_user.*'   => 'numeric',
+			'name_user.*' => 'alpha',
+		]);
+
+		$this->validation->withRequest($request)
+			->run();
+		$this->assertEquals([
+			'id_user.*'   => 'The id_user.* field must contain only numbers.',
+			'name_user.*' => 'The name_user.* field may only contain alphabetical characters.',
+		], $this->validation->getErrors());
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testRulesForSingleRuleWithSingleValue()
+	{
+		$config          = new App();
+		$config->baseURL = 'http://example.com';
+
+		$_REQUEST = [
+			'id_user' => 'gh',
+		];
+
+		$request = new IncomingRequest($config, new URI(), 'php://input', new UserAgent());
+		$request->setMethod('post');
+
+		$this->validation->setRules([
+			'id_user' => 'numeric',
+		]);
+
+		$this->validation->withRequest($request)
+			->run();
+		$this->assertEquals([
+			'id_user' => 'The id_user field must contain only numbers.',
+		], $this->validation->getErrors());
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testTranslatedLabel()
+	{
+		$rules = [
+			'foo' => [
+				'label' => 'Foo.bar',
+				'rules' => 'min_length[10]',
+			],
+		];
+
+		$this->validation->setRules($rules, []);
+
+		$this->validation->run(['foo' => 'abc']);
+
+		$this->assertEquals('The Foo Bar Translated field must be at least 10 characters in length.', $this->validation->getError('foo'));
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testTranslatedLabelIsMissing()
+	{
+		$rules = [
+			'foo' => [
+				'label' => 'Foo.bar.is.missing',
+				'rules' => 'min_length[10]',
+			],
+		];
+
+		$this->validation->setRules($rules, []);
+
+		$this->validation->run(['foo' => 'abc']);
+
+		$this->assertEquals('The Foo.bar.is.missing field must be at least 10 characters in length.', $this->validation->getError('foo'));
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testTranslatedLabelWithCustomErrorMessage()
+	{
+		$rules = [
+			'foo' => [
+				'label'  => 'Foo.bar',
+				'rules'  => 'min_length[10]',
+				'errors' => [
+					'min_length' => 'Foo.bar.min_length1',
+				],
+			],
+		];
+
+		$this->validation->setRules($rules, []);
+
+		$this->validation->run(['foo' => 'abc']);
+
+		$this->assertEquals('The Foo Bar Translated field is very short.', $this->validation->getError('foo'));
+	}
+
+	//--------------------------------------------------------------------
+
+	public function testTranslatedLabelTagReplacement()
+	{
+		// data
+		$data = [
+			'Username' => 'Pizza',
+		];
+
+		// rules
+		$this->validation->setRules([
+			'Username' => [
+				'label' => 'Foo.bar',
+				'rules' => 'min_length[6]',
+			],
+		], [
+			'Username' => [
+				'min_length' => 'Foo.bar.min_length2',
+			],
+		]);
+
+		// run validation
+		$this->validation->run($data);
+
+		// $errors should contain an associative array
+		$errors = $this->validation->getErrors();
+
+		// if "Username" doesn't exist in errors
+		if (! isset($errors['Username']))
+		{
+			$this->fail('Unable to find "Username"');
+		}
+
+		// expected error message
+		$expected = 'Supplied value (Pizza) for Foo Bar Translated must have at least 6 characters.';
+
+		// check if they are the same!
+		$this->assertEquals($expected, $errors['Username']);
+	}
+
+	//--------------------------------------------------------------------
 }

@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Database\SQLite3;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2017 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,14 +28,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package      CodeIgniter
- * @author       CodeIgniter Dev Team
- * @copyright    2014-2017 British Columbia Institute of Technology (https://bcit.ca/)
- * @license      https://opensource.org/licenses/MIT	MIT License
- * @link         https://codeigniter.com
- * @since        Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
+
+namespace CodeIgniter\Database\SQLite3;
+
 use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\Database\Exceptions\DatabaseException;
@@ -48,7 +52,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Database driver
 	 *
-	 * @var    string
+	 * @var string
 	 */
 	public $DBDriver = 'SQLite3';
 
@@ -57,34 +61,43 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * ORDER BY random keyword
 	 *
-	 * @var    array
+	 * @var array
 	 */
-	protected $_random_keyword = ['RANDOM()', 'RANDOM()'];
+	protected $_random_keyword = [
+		'RANDOM()',
+	];
 
 	//--------------------------------------------------------------------
 
 	/**
 	 * Connect to the database.
 	 *
-	 * @param bool $persistent
+	 * @param boolean $persistent
 	 *
 	 * @return mixed
 	 * @throws \CodeIgniter\Database\Exceptions\DatabaseException
 	 */
-	public function connect($persistent = false)
+	public function connect(bool $persistent = false)
 	{
-		if ($persistent and $this->db->DBDebug)
+		if ($persistent && $this->db->DBDebug)
 		{
 			throw new DatabaseException('SQLite3 doesn\'t support persistent connections.');
 		}
 		try
 		{
+			$this->database = ($this->database === ':memory:')
+				? $this->database
+				: (strpos($this->database, DIRECTORY_SEPARATOR) === false
+					? WRITEPATH . 'data' . DIRECTORY_SEPARATOR . $this->database
+					: $this->database);
+
 			return (! $this->password)
 				? new \SQLite3($this->database)
 				: new \SQLite3($this->database, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $this->password);
-		} catch (\Exception $e)
+		}
+		catch (\Exception $e)
 		{
-			throw new DatabaseException('SQLite3 error: '.$e->getMessage());
+			throw new DatabaseException('SQLite3 error: ' . $e->getMessage());
 		}
 	}
 
@@ -94,7 +107,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	 * Keep or establish the connection if no queries have been sent for
 	 * a length of time exceeding the server's idle timeout.
 	 *
-	 * @return mixed
+	 * @return void
 	 */
 	public function reconnect()
 	{
@@ -121,9 +134,9 @@ class Connection extends BaseConnection implements ConnectionInterface
 	 *
 	 * @param string $databaseName
 	 *
-	 * @return mixed
+	 * @return boolean
 	 */
-	public function setDatabase(string $databaseName)
+	public function setDatabase(string $databaseName): bool
 	{
 		return false;
 	}
@@ -133,9 +146,9 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Returns a string containing the version of the database being used.
 	 *
-	 * @return mixed
+	 * @return string
 	 */
-	public function getVersion()
+	public function getVersion(): string
 	{
 		if (isset($this->dataCache['version']))
 		{
@@ -149,19 +162,30 @@ class Connection extends BaseConnection implements ConnectionInterface
 
 	//--------------------------------------------------------------------
 
-
 	/**
 	 * Execute the query
 	 *
-	 * @param    string $sql
+	 * @param string $sql
 	 *
-	 * @return    mixed    \SQLite3Result object or bool
+	 * @return mixed    \SQLite3Result object or bool
 	 */
-	public function execute($sql)
+	public function execute(string $sql)
 	{
-		return $this->isWriteType($sql)
-			? $this->connID->exec($sql)
-			: $this->connID->query($sql);
+		try
+		{
+			return $this->isWriteType($sql)
+				? $this->connID->exec($sql)
+				: $this->connID->query($sql);
+		}
+		catch (\ErrorException $e)
+		{
+			log_message('error', $e);
+			if ($this->DBDebug)
+			{
+				throw $e;
+			}
+		}
+		return false;
 	}
 
 	//--------------------------------------------------------------------
@@ -169,7 +193,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Returns the total number of rows affected by this query.
 	 *
-	 * @return mixed
+	 * @return integer
 	 */
 	public function affectedRows(): int
 	{
@@ -181,9 +205,9 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Platform-dependant string escape
 	 *
-	 * @param    string $str
+	 * @param string $str
 	 *
-	 * @return    string
+	 * @return string
 	 */
 	protected function _escapeString(string $str): string
 	{
@@ -195,15 +219,16 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Generates the SQL for listing tables in a platform-dependent manner.
 	 *
-	 * @param bool $prefixLimit
+	 * @param boolean $prefixLimit
 	 *
 	 * @return string
 	 */
-	protected function _listTables($prefixLimit = false): string
+	protected function _listTables(bool $prefixLimit = false): string
 	{
 		return 'SELECT "NAME" FROM "SQLITE_MASTER" WHERE "TYPE" = \'table\''
-		       .(($prefixLimit !== false && $this->DBPrefix != '')
-				? ' AND "NAME" LIKE \''.$this->escapeLikeString($this->DBPrefix).'%\' '.sprintf($this->likeEscapeStr,
+			   . ' AND "NAME" NOT LIKE \'sqlite!_%\' ESCAPE \'!\''
+			   . (($prefixLimit !== false && $this->DBPrefix !== '')
+				? ' AND "NAME" LIKE \'' . $this->escapeLikeString($this->DBPrefix) . '%\' ' . sprintf($this->likeEscapeStr,
 					$this->likeEscapeChar)
 				: '');
 	}
@@ -219,19 +244,18 @@ class Connection extends BaseConnection implements ConnectionInterface
 	 */
 	protected function _listColumns(string $table = ''): string
 	{
-		return 'PRAGMA TABLE_INFO('.$this->protectIdentifiers($table, true, null, false).')';
+		return 'PRAGMA TABLE_INFO(' . $this->protectIdentifiers($table, true, null, false) . ')';
 	}
-
 
 	/**
 	 * Fetch Field Names
 	 *
-	 * @param    string $table Table name
+	 * @param string $table Table name
 	 *
 	 * @return array|false
 	 * @throws DatabaseException
 	 */
-	public function getFieldNames($table)
+	public function getFieldNames(string $table)
 	{
 		// Is there a cached result?
 		if (isset($this->dataCache['field_names'][$table]))
@@ -248,7 +272,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 		{
 			if ($this->DBDebug)
 			{
-				throw new DatabaseException('This feature is not available for the database you are using.');
+				throw new DatabaseException(lang('Database.featureUnavailable'));
 			}
 
 			return false;
@@ -289,62 +313,62 @@ class Connection extends BaseConnection implements ConnectionInterface
 
 	//--------------------------------------------------------------------
 
-
 	/**
-	 * Returns an object with field data
+	 * Returns an array of objects with field data
 	 *
-	 * @param    string $table
-	 *
-	 * @return    array
+	 * @param  string $table
+	 * @return \stdClass[]
+	 * @throws DatabaseException
 	 */
-	public function _fieldData(string $table)
+	public function _fieldData(string $table): array
 	{
-
-		if (($query = $this->query('PRAGMA TABLE_INFO('.$this->protectIdentifiers($table, true, null,
-					false).')')) === false)
+		if (($query = $this->query('PRAGMA TABLE_INFO(' . $this->protectIdentifiers($table, true, null,
+					false) . ')')) === false)
 		{
-			return false;
+			throw new DatabaseException(lang('Database.failGetFieldData'));
 		}
 		$query = $query->getResultObject();
+
 		if (empty($query))
 		{
-			return false;
+			return [];
 		}
-		$retval = [];
+		$retVal = [];
 		for ($i = 0, $c = count($query); $i < $c; $i++)
 		{
-			$retval[$i]              = new \stdClass();
-			$retval[$i]->name        = $query[$i]->name;
-			$retval[$i]->type        = $query[$i]->type;
-			$retval[$i]->max_length  = null;
-			$retval[$i]->default     = $query[$i]->dflt_value;
-			$retval[$i]->primary_key = isset($query[$i]->pk) ? (int)$query[$i]->pk : 0;
+			$retVal[$i]              = new \stdClass();
+			$retVal[$i]->name        = $query[$i]->name;
+			$retVal[$i]->type        = $query[$i]->type;
+			$retVal[$i]->max_length  = null;
+			$retVal[$i]->default     = $query[$i]->dflt_value;
+			$retVal[$i]->primary_key = isset($query[$i]->pk) && (bool)$query[$i]->pk;
+			$retVal[$i]->nullable    = isset($query[$i]->notnull) && ! (bool)$query[$i]->notnull;
 		}
 
-		return $retval;
+		return $retVal;
 	}
 
 	//--------------------------------------------------------------------
 
 	/**
-	 * Returns an object with index data
+	 * Returns an array of objects with index data
 	 *
-	 * @param    string $table
-	 *
-	 * @return    array
+	 * @param  string $table
+	 * @return \stdClass[]
+	 * @throws DatabaseException
 	 */
-	public function _indexData(string $table)
+	public function _indexData(string $table): array
 	{
 		// Get indexes
 		// Don't use PRAGMA index_list, so we can preserve index order
-		$sql = "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=".$this->escape(strtolower($table))."";
+		$sql = "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=" . $this->escape(strtolower($table));
 		if (($query = $this->query($sql)) === false)
 		{
-			return false;
+			throw new DatabaseException(lang('Database.failGetIndexData'));
 		}
 		$query = $query->getResultObject();
 
-		$retval = [];
+		$retVal = [];
 		foreach ($query as $row)
 		{
 			$obj       = new \stdClass();
@@ -352,9 +376,9 @@ class Connection extends BaseConnection implements ConnectionInterface
 
 			// Get fields for index
 			$obj->fields = [];
-			if (($fields = $this->query('PRAGMA index_info('.$this->escape(strtolower($row->name)).')')) === false)
+			if (($fields = $this->query('PRAGMA index_info(' . $this->escape(strtolower($row->name)) . ')')) === false)
 			{
-				return false;
+				throw new DatabaseException(lang('Database.failGetIndexData'));
 			}
 			$fields = $fields->getResultObject();
 
@@ -363,10 +387,77 @@ class Connection extends BaseConnection implements ConnectionInterface
 				$obj->fields[] = $field->name;
 			}
 
-			$retval[] = $obj;
+			$retVal[$obj->name] = $obj;
 		}
 
-		return $retval;
+		return $retVal;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns an array of objects with Foreign key data
+	 *
+	 * @param  string $table
+	 * @return \stdClass[]
+	 */
+	public function _foreignKeyData(string $table): array
+	{
+		if ($this->supportsForeignKeys() !== true)
+		{
+			return [];
+		}
+
+		$tables = $this->listTables();
+
+		if (empty($tables))
+		{
+			return [];
+		}
+
+		$retVal = [];
+
+		foreach ($tables as $table)
+		{
+			$query = $this->query("PRAGMA foreign_key_list({$table})")->getResult();
+
+			foreach ($query as $row)
+			{
+				$obj                     = new \stdClass();
+				$obj->constraint_name    = $row->from . ' to ' . $row->table . '.' . $row->to;
+				$obj->table_name         = $table;
+				$obj->foreign_table_name = $row->table;
+				$obj->sequence           = $row->seq;
+
+				$retVal[] = $obj;
+			}
+		}
+
+		return $retVal;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns platform-specific SQL to disable foreign key checks.
+	 *
+	 * @return string
+	 */
+	protected function _disableForeignKeyChecks()
+	{
+		return 'PRAGMA foreign_keys = OFF';
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns platform-specific SQL to enable foreign key checks.
+	 *
+	 * @return string
+	 */
+	protected function _enableForeignKeyChecks()
+	{
+		return 'PRAGMA foreign_keys = ON';
 	}
 
 	//--------------------------------------------------------------------
@@ -378,11 +469,14 @@ class Connection extends BaseConnection implements ConnectionInterface
 	 *
 	 *  return ['code' => null, 'message' => null);
 	 *
-	 * @return    array
+	 * @return array
 	 */
 	public function error(): array
 	{
-		return ['code' => $this->connID->lastErrorCode(), 'message' => $this->connID->lastErrorMsg()];
+		return [
+			'code'    => $this->connID->lastErrorCode(),
+			'message' => $this->connID->lastErrorMsg(),
+		];
 	}
 
 	//--------------------------------------------------------------------
@@ -390,7 +484,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Insert ID
 	 *
-	 * @return    int
+	 * @return integer
 	 */
 	public function insertID(): int
 	{
@@ -402,7 +496,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Begin Transaction
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
 	protected function _transBegin(): bool
 	{
@@ -414,7 +508,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Commit Transaction
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
 	protected function _transCommit(): bool
 	{
@@ -426,7 +520,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Rollback Transaction
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
 	protected function _transRollback(): bool
 	{
@@ -438,7 +532,7 @@ class Connection extends BaseConnection implements ConnectionInterface
 	/**
 	 * Determines if the statement is a write-type query or not.
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	public function isWriteType($sql): bool
 	{
@@ -453,53 +547,13 @@ class Connection extends BaseConnection implements ConnectionInterface
 	 * Checks to see if the current install supports Foreign Keys
 	 * and has them enabled.
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
-	protected function supportsForeignKeys(): bool
+	public function supportsForeignKeys(): bool
 	{
-		$result = $this->simpleQuery("PRAGMA foreign_keys");
+		$result = $this->simpleQuery('PRAGMA foreign_keys');
 
 		return (bool)$result;
-	}
-
-	/**
-	 * Returns an object with Foreign key data
-	 *
-	 * @param	string	$table
-	 * @return	array
-	 */
-	public function _foreignKeyData(string $table)
-	{
-		if ($this->supportsForeignKeys() !== true)
-		{
-			return [];
-		}
-
-		$tables = $this->listTables();
-
-		if (empty($tables))
-		{
-			return [];
-		}
-
-		$retval = [];
-
-		foreach ($tables as $table)
-		{
-			$query = $this->query("PRAGMA foreign_key_list({$table})")->getResult();
-
-			foreach ($query as $row)
-			{
-				$obj = new \stdClass();
-				$obj->constraint_name = $row->from.' to '. $row->table.'.'.$row->to;
-				$obj->table_name = $table;
-				$obj->foreign_table_name = $row->table;
-
-				$retval[] = $obj;
-			}
-		}
-
-		return $retval;
 	}
 
 	//--------------------------------------------------------------------

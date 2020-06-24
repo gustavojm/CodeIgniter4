@@ -1,7 +1,49 @@
-<?php namespace CodeIgniter\HTTP;
+<?php
+
+/**
+ * CodeIgniter
+ *
+ * An open source application development framework for PHP
+ *
+ * This content is released under the MIT License (MIT)
+ *
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
+ * @filesource
+ */
+
+namespace CodeIgniter\HTTP;
 
 use Config\UserAgents;
 
+/**
+ * Abstraction for an HTTP user agent
+ */
 class UserAgent
 {
 	/**
@@ -9,26 +51,26 @@ class UserAgent
 	 *
 	 * @var string
 	 */
-	protected $agent = null;
+	protected $agent = '';
 
 	/**
 	 * Flag for if the user-agent belongs to a browser
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $isBrowser = false;
 
 	/**
 	 * Flag for if the user-agent is a robot
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $isRobot = false;
 
 	/**
 	 * Flag for if the user-agent is a mobile browser
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $isMobile = false;
 
@@ -77,7 +119,7 @@ class UserAgent
 	/**
 	 * HTTP Referer
 	 *
-	 * @var    mixed
+	 * @var mixed
 	 */
 	protected $referrer;
 
@@ -88,14 +130,11 @@ class UserAgent
 	 *
 	 * Sets the User Agent and runs the compilation routine
 	 *
-	 * @param null $config
+	 * @param null|\Config\UserAgents $config
 	 */
-	public function __construct($config = null)
+	public function __construct(UserAgents $config = null)
 	{
-		if (is_null($config))
-		{
-			$this->config = new UserAgents();
-		}
+		$this->config = $config ?? new UserAgents();
 
 		if (isset($_SERVER['HTTP_USER_AGENT']))
 		{
@@ -109,11 +148,11 @@ class UserAgent
 	/**
 	 * Is Browser
 	 *
-	 * @param    string $key
+	 * @param string $key
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	public function isBrowser($key = null)
+	public function isBrowser(string $key = null): bool
 	{
 		if (! $this->isBrowser)
 		{
@@ -135,11 +174,11 @@ class UserAgent
 	/**
 	 * Is Robot
 	 *
-	 * @param    string $key
+	 * @param string $key
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	public function isRobot($key = null)
+	public function isRobot(string $key = null): bool
 	{
 		if (! $this->isRobot)
 		{
@@ -161,11 +200,11 @@ class UserAgent
 	/**
 	 * Is Mobile
 	 *
-	 * @param    string $key
+	 * @param string $key
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	public function isMobile($key = null)
+	public function isMobile(string $key = null): bool
 	{
 		if (! $this->isMobile)
 		{
@@ -187,9 +226,9 @@ class UserAgent
 	/**
 	 * Is this a referral from another site?
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	public function isReferral()
+	public function isReferral(): bool
 	{
 		if (! isset($this->referrer))
 		{
@@ -214,9 +253,9 @@ class UserAgent
 	/**
 	 * Agent String
 	 *
-	 * @return    string
+	 * @return string
 	 */
-	public function getAgentString()
+	public function getAgentString(): string
 	{
 		return $this->agent;
 	}
@@ -226,9 +265,9 @@ class UserAgent
 	/**
 	 * Get Platform
 	 *
-	 * @return    string
+	 * @return string
 	 */
-	public function getPlatform()
+	public function getPlatform(): string
 	{
 		return $this->platform;
 	}
@@ -238,9 +277,9 @@ class UserAgent
 	/**
 	 * Get Browser Name
 	 *
-	 * @return    string
+	 * @return string
 	 */
-	public function getBrowser()
+	public function getBrowser(): string
 	{
 		return $this->browser;
 	}
@@ -250,9 +289,9 @@ class UserAgent
 	/**
 	 * Get the Browser Version
 	 *
-	 * @return    string
+	 * @return string
 	 */
-	public function getVersion()
+	public function getVersion(): string
 	{
 		return $this->version;
 	}
@@ -262,9 +301,9 @@ class UserAgent
 	/**
 	 * Get The Robot Name
 	 *
-	 * @return    string
+	 * @return string
 	 */
-	public function getRobot()
+	public function getRobot(): string
 	{
 		return $this->robot;
 	}
@@ -273,9 +312,9 @@ class UserAgent
 	/**
 	 * Get the Mobile Device
 	 *
-	 * @return    string
+	 * @return string
 	 */
-	public function getMobile()
+	public function getMobile(): string
 	{
 		return $this->mobile;
 	}
@@ -285,9 +324,9 @@ class UserAgent
 	/**
 	 * Get the referrer
 	 *
-	 * @return    bool
+	 * @return string
 	 */
-	public function getReferrer()
+	public function getReferrer(): string
 	{
 		return empty($_SERVER['HTTP_REFERER']) ? '' : trim($_SERVER['HTTP_REFERER']);
 	}
@@ -297,11 +336,11 @@ class UserAgent
 	/**
 	 * Parse a custom user-agent string
 	 *
-	 * @param    string $string
+	 * @param string $string
 	 *
-	 * @return    void
+	 * @return void
 	 */
-	public function parse($string)
+	public function parse(string $string)
 	{
 		// Reset values
 		$this->isBrowser = false;
@@ -325,7 +364,7 @@ class UserAgent
 	/**
 	 * Compile the User Agent Data
 	 *
-	 * @return    bool
+	 * @return void
 	 */
 	protected function compileData()
 	{
@@ -345,15 +384,15 @@ class UserAgent
 	/**
 	 * Set the Platform
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	protected function setPlatform()
+	protected function setPlatform(): bool
 	{
 		if (is_array($this->config->platforms) && $this->config->platforms)
 		{
 			foreach ($this->config->platforms as $key => $val)
 			{
-				if (preg_match('|'.preg_quote($key).'|i', $this->agent))
+				if (preg_match('|' . preg_quote($key) . '|i', $this->agent))
 				{
 					$this->platform = $val;
 
@@ -372,15 +411,15 @@ class UserAgent
 	/**
 	 * Set the Browser
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	protected function setBrowser()
+	protected function setBrowser(): bool
 	{
 		if (is_array($this->config->browsers) && $this->config->browsers)
 		{
 			foreach ($this->config->browsers as $key => $val)
 			{
-				if (preg_match('|'.$key.'.*?([0-9\.]+)|i', $this->agent, $match))
+				if (preg_match('|' . $key . '.*?([0-9\.]+)|i', $this->agent, $match))
 				{
 					$this->isBrowser = true;
 					$this->version   = $match[1];
@@ -400,15 +439,15 @@ class UserAgent
 	/**
 	 * Set the Robot
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	protected function setRobot()
+	protected function setRobot(): bool
 	{
 		if (is_array($this->config->robots) && $this->config->robots)
 		{
 			foreach ($this->config->robots as $key => $val)
 			{
-				if (preg_match('|'.preg_quote($key).'|i', $this->agent))
+				if (preg_match('|' . preg_quote($key) . '|i', $this->agent))
 				{
 					$this->isRobot = true;
 					$this->robot   = $val;
@@ -427,9 +466,9 @@ class UserAgent
 	/**
 	 * Set the Mobile Device
 	 *
-	 * @return    bool
+	 * @return boolean
 	 */
-	protected function setMobile()
+	protected function setMobile(): bool
 	{
 		if (is_array($this->config->mobiles) && $this->config->mobiles)
 		{
@@ -455,7 +494,7 @@ class UserAgent
 	 *
 	 * @return string
 	 */
-	public function __toString()
+	public function __toString(): string
 	{
 		return $this->getAgentString();
 	}

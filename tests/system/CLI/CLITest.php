@@ -2,20 +2,20 @@
 
 use CodeIgniter\Test\Filters\CITestStreamFilter;
 
-class CLITest extends \CIUnitTestCase
+class CLITest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	private $stream_filter;
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
 		CITestStreamFilter::$buffer = '';
-		$this->stream_filter = stream_filter_append(STDOUT, 'CITestStreamFilter');
+		$this->stream_filter        = stream_filter_append(STDOUT, 'CITestStreamFilter');
 	}
 
-	public function tearDown()
+	public function tearDown(): void
 	{
 		stream_filter_remove($this->stream_filter);
 	}
@@ -42,11 +42,11 @@ class CLITest extends \CIUnitTestCase
 	{
 		$time = time();
 		CLI::wait(1, true);
-		$this->assertEquals(1, time() - $time);
+		$this->assertCloseEnough(1, time() - $time);
 
 		$time = time();
 		CLI::wait(1);
-		$this->assertEquals(1, time() - $time);
+		$this->assertCloseEnough(1, time() - $time);
 
 		// Leaving the code fragment below in, to remind myself (or others)
 		// of what appears to be the most likely path to test this last
@@ -54,14 +54,14 @@ class CLITest extends \CIUnitTestCase
 		// The problem: if the block below is enabled, the phpunit tests
 		// go catatonic when it is executed, presumably because of
 		// the CLI::input() waiting for a key press
-//		// test the press any key to continue...
-//		stream_filter_register('CLITestKeyboardFilter', 'CodeIgniter\CLI\CLITestKeyboardFilter');
-//		$spoofer = stream_filter_append(STDIN, 'CLITestKeyboardFilter');
-//		$time = time();
-//		CLITestKeyboardFilter::$spoofed = ' ';
-//		CLI::wait(0);
-//		stream_filter_remove($spoofer);
-//		$this->assertEquals(0, time() - $time);
+		//      // test the press any key to continue...
+		//      stream_filter_register('CLITestKeyboardFilter', 'CodeIgniter\CLI\CLITestKeyboardFilter');
+		//      $spoofer = stream_filter_append(STDIN, 'CLITestKeyboardFilter');
+		//      $time = time();
+		//      CLITestKeyboardFilter::$spoofed = ' ';
+		//      CLI::wait(0);
+		//      stream_filter_remove($spoofer);
+		//      $this->assertEquals(0, time() - $time);
 	}
 
 	public function testIsWindows()
@@ -76,21 +76,19 @@ class CLITest extends \CIUnitTestCase
 		CLI::newLine();
 	}
 
-	/**
-	 * @expectedException        RuntimeException
-	 * @expectedExceptionMessage Invalid foreground color: Foreground
-	 */
 	public function testColorExceptionForeground()
 	{
+		$this->expectException('RuntimeException');
+		$this->expectExceptionMessage('Invalid foreground color: Foreground');
+
 		CLI::color('test', 'Foreground');
 	}
 
-	/**
-	 * @expectedException        RuntimeException
-	 * @expectedExceptionMessage Invalid background color: Background
-	 */
 	public function testColorExceptionBackground()
 	{
+		$this->expectException('RuntimeException');
+		$this->expectExceptionMessage('Invalid background color: Background');
+
 		CLI::color('test', 'white', 'Background');
 	}
 
@@ -99,10 +97,35 @@ class CLITest extends \CIUnitTestCase
 		$this->assertEquals("\033[1;37m\033[42m\033[4mtest\033[0m", CLI::color('test', 'white', 'green', 'underline'));
 	}
 
+	public function testPrint()
+	{
+		CLI::print('test');
+		$expected = 'test';
+
+		$this->assertEquals($expected, CITestStreamFilter::$buffer);
+	}
+
+	public function testPrintForeground()
+	{
+		CLI::print('test', 'red');
+		$expected = "\033[0;31mtest\033[0m";
+
+		$this->assertEquals($expected, CITestStreamFilter::$buffer);
+	}
+
+	public function testPrintBackground()
+	{
+		CLI::print('test', 'red', 'green');
+		$expected = "\033[0;31m\033[42mtest\033[0m";
+
+		$this->assertEquals($expected, CITestStreamFilter::$buffer);
+	}
+
 	public function testWrite()
 	{
 		CLI::write('test');
 		$expected = <<<EOT
+
 test
 
 EOT;
@@ -216,7 +239,11 @@ EOT;
 
 	public function testParseCommand()
 	{
-		$_SERVER['argv'] = ['ignored', 'b', 'c'];
+		$_SERVER['argv'] = [
+			'ignored',
+			'b',
+			'c',
+		];
 		$_SERVER['argc'] = 3;
 		CLI::init();
 		$this->assertEquals(null, CLI::getSegment(3));
@@ -230,7 +257,15 @@ EOT;
 
 	public function testParseCommandMixed()
 	{
-		$_SERVER['argv'] = ['ignored', 'b', 'c', 'd', '-parm', 'pvalue', 'd2'];
+		$_SERVER['argv'] = [
+			'ignored',
+			'b',
+			'c',
+			'd',
+			'-parm',
+			'pvalue',
+			'd2',
+		];
 		$_SERVER['argc'] = 7;
 		CLI::init();
 		$this->assertEquals(null, CLI::getSegment(7));
@@ -242,7 +277,14 @@ EOT;
 
 	public function testParseCommandOption()
 	{
-		$_SERVER['argv'] = ['ignored', 'b', 'c', '-parm', 'pvalue', 'd'];
+		$_SERVER['argv'] = [
+			'ignored',
+			'b',
+			'c',
+			'-parm',
+			'pvalue',
+			'd',
+		];
 		$_SERVER['argc'] = 6;
 		CLI::init();
 		$this->assertEquals(['parm' => 'pvalue'], CLI::getOptions());
@@ -254,7 +296,17 @@ EOT;
 
 	public function testParseCommandMultipleOptions()
 	{
-		$_SERVER['argv'] = ['ignored', 'b', 'c', '-parm', 'pvalue', 'd', '-p2', '-p3', 'value 3'];
+		$_SERVER['argv'] = [
+			'ignored',
+			'b',
+			'c',
+			'-parm',
+			'pvalue',
+			'd',
+			'-p2',
+			'-p3',
+			'value 3',
+		];
 		$_SERVER['argc'] = 9;
 		CLI::init();
 		$this->assertEquals(['parm' => 'pvalue', 'p2' => null, 'p3' => 'value 3'], CLI::getOptions());
@@ -272,9 +324,9 @@ EOT;
 	/**
 	 * @dataProvider tableProvider
 	 *
-	 * @param  array $tbody
-	 * @param  array $thead
-	 * @param  array $expected
+	 * @param array $tbody
+	 * @param array $thead
+	 * @param array $expected
 	 */
 	public function testTable($tbody, $thead, $expected)
 	{
@@ -284,35 +336,75 @@ EOT;
 
 	public function tableProvider()
 	{
-		$head = ['ID', 'Title'];
-		$one_row = [['id' => 1, 'foo' => 'bar']];
+		$head      = [
+			'ID',
+			'Title',
+		];
+		$one_row   = [
+			[
+				'id'  => 1,
+				'foo' => 'bar',
+			],
+		];
 		$many_rows = [
-			['id' => 1, 'foo' => 'bar'],
-			['id' => 2, 'foo' => 'bar * 2'],
-			['id' => 3, 'foo' => 'bar + bar + bar'],
+			[
+				'id'  => 1,
+				'foo' => 'bar',
+			],
+			[
+				'id'  => 2,
+				'foo' => 'bar * 2',
+			],
+			[
+				'id'  => 3,
+				'foo' => 'bar + bar + bar',
+			],
 		];
 
 		return [
-			[$one_row, [], "+---+-----+\n" .
+			[
+				$one_row,
+				[],
+				"+---+-----+\n" .
 				"| 1 | bar |\n" .
-				"+---+-----+\n"],
-			[$one_row, $head, "+----+-------+\n" .
+				"+---+-----+\n\n",
+			],
+			[
+				$one_row,
+				$head,
+				"+----+-------+\n" .
 				"| ID | Title |\n" .
 				"+----+-------+\n" .
 				"| 1  | bar   |\n" .
-				"+----+-------+\n"],
-			[$many_rows, [], "+---+-----------------+\n" .
+				"+----+-------+\n\n",
+			],
+			[
+				$many_rows,
+				[],
+				"+---+-----------------+\n" .
 				"| 1 | bar             |\n" .
 				"| 2 | bar * 2         |\n" .
 				"| 3 | bar + bar + bar |\n" .
-				"+---+-----------------+\n"],
-			[$many_rows, $head, "+----+-----------------+\n" .
+				"+---+-----------------+\n\n",
+			],
+			[
+				$many_rows,
+				$head,
+				"+----+-----------------+\n" .
 				"| ID | Title           |\n" .
 				"+----+-----------------+\n" .
 				"| 1  | bar             |\n" .
 				"| 2  | bar * 2         |\n" .
 				"| 3  | bar + bar + bar |\n" .
-				"+----+-----------------+\n"],
+				"+----+-----------------+\n\n",
+			],
 		];
+	}
+
+	public function testStrlen()
+	{
+		$this->assertEquals(18, mb_strlen(CLI::color('success', 'green')));
+		$this->assertEquals(7, CLI::strlen(CLI::color('success', 'green')));
+		$this->assertEquals(0, CLI::strlen(null));
 	}
 }

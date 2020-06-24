@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Database\SQLite3;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2017 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,42 +28,46 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package	CodeIgniter
- * @author	CodeIgniter Dev Team
- * @copyright	2014-2017 British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
+
+namespace CodeIgniter\Database\SQLite3;
+
+use CodeIgniter\Database\BaseUtils;
+use CodeIgniter\Database\Exceptions\DatabaseException;
 
 /**
  * Utils for SQLite3
  */
-class Utils extends \CodeIgniter\Database\BaseUtils
+class Utils extends BaseUtils
 {
 
-    /**
-     * OPTIMIZE TABLE statement
-     *
-     * @var	string
-     */
-    protected $optimizeTable = 'REINDEX %s';
+	/**
+	 * OPTIMIZE TABLE statement
+	 *
+	 * @var string
+	 */
+	protected $optimizeTable = 'REINDEX %s';
 
-    //--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 
-    /**
-     * Platform dependent version of the backup function.
-     *
-     * @param array|null $prefs
-     * @todo build
-     *
-     * @return mixed
-     */
-    public function _backup(array $prefs = null)
-    {
-        throw new DatabaseException('Unsupported feature of the database platform you are using.');
-    }
+	/**
+	 * Platform dependent version of the backup function.
+	 *
+	 * @param array|null $prefs
+	 *
+	 * @return mixed
+	 */
+	public function _backup(array $prefs = null)
+	{
+		throw new DatabaseException('Unsupported feature of the database platform you are using.');
+	}
 
-    //--------------------------------------------------------------------
+	//--------------------------------------------------------------------
 }

@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Log\Handlers;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,17 +28,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package	CodeIgniter
- * @author	CodeIgniter Dev Team
- * @copyright	2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
-use CodeIgniter\Events\Events;
+
+namespace CodeIgniter\Log\Handlers;
+
 use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\Services;
+use Config\Services;
 
 /**
  * Class ChromeLoggerHandler
@@ -60,9 +63,9 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 	const VERSION = 1.0;
 
 	/**
-	 * The number of strack frames returned from the backtrace.
+	 * The number of track frames returned from the backtrace.
 	 *
-	 * @var int
+	 * @var integer
 	 */
 	protected $backtraceLevel = 0;
 
@@ -72,9 +75,13 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 	 * @var array
 	 */
 	protected $json = [
-		'version'	 => self::VERSION,
-		'columns'	 => ['log', 'backtrace', 'type'],
-		'rows'		 => [],
+		'version' => self::VERSION,
+		'columns' => [
+			'log',
+			'backtrace',
+			'type',
+		],
+		'rows'    => [],
 	];
 
 	/**
@@ -90,14 +97,14 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 	 * @var array
 	 */
 	protected $levels = [
-		'emergency'	 => 'error',
-		'alert'		 => 'error',
-		'critical'	 => 'error',
-		'error'		 => 'error',
-		'warning'	 => 'warn',
-		'notice'	 => 'warn',
-		'info'		 => 'info',
-		'debug'		 => 'info',
+		'emergency' => 'error',
+		'alert'     => 'error',
+		'critical'  => 'error',
+		'error'     => 'error',
+		'warning'   => 'warn',
+		'notice'    => 'warn',
+		'info'      => 'info',
+		'debug'     => 'info',
 	];
 
 	//--------------------------------------------------------------------
@@ -114,8 +121,6 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 		$request = Services::request(null, true);
 
 		$this->json['request_uri'] = (string) $request->uri;
-
-		Events::on('post_controller', [$this, 'sendLogs'], EVENT_PRIORITY_HIGH);
 	}
 
 	//--------------------------------------------------------------------
@@ -129,7 +134,7 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 	 * @param $level
 	 * @param $message
 	 *
-	 * @return bool
+	 * @return boolean
 	 */
 	public function handle($level, $message): bool
 	{
@@ -154,7 +159,13 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 			$type = $this->levels[$level];
 		}
 
-		$this->json['rows'][] = [$message, $backtraceMessage, $type];
+		$this->json['rows'][] = [
+			[$message],
+			$backtraceMessage,
+			$type,
+		];
+
+		$this->sendLogs();
 
 		return true;
 	}
@@ -170,7 +181,7 @@ class ChromeLoggerHandler extends BaseHandler implements HandlerInterface
 	 */
 	protected function format($object)
 	{
-		if ( ! is_object($object))
+		if (! is_object($object))
 		{
 			return $object;
 		}

@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Debug\Toolbar\Collectors;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +28,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package      CodeIgniter
- * @author       CodeIgniter Dev Team
- * @copyright    2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license      https://opensource.org/licenses/MIT	MIT License
- * @link         https://codeigniter.com
- * @since        Version 4.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
-use CodeIgniter\Config\Services;
+
+namespace CodeIgniter\Debug\Toolbar\Collectors;
+
+use Config\Services;
 
 /**
  * Loags collector
@@ -47,7 +51,7 @@ class Logs extends BaseCollector
 	 * Whether this collector has data that can
 	 * be displayed in the Timeline.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $hasTimeline = false;
 
@@ -55,7 +59,7 @@ class Logs extends BaseCollector
 	 * Whether this collector needs to display
 	 * content in a tab or not.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
 	protected $hasTabContent = true;
 
@@ -83,15 +87,8 @@ class Logs extends BaseCollector
 	 */
 	public function display(): array
 	{
-		$logs = $this->collectLogs();
-
-		if (empty($logs) || ! is_array($logs))
-		{
-			$logs = [];
-		}
-
 		return [
-			'logs' => $logs
+			'logs' => $this->collectLogs(),
 		];
 	}
 
@@ -99,8 +96,10 @@ class Logs extends BaseCollector
 
 	/**
 	 * Does this collector actually have any data to display?
+	 *
+	 * @return boolean
 	 */
-	public function isEmpty()
+	public function isEmpty(): bool
 	{
 		$this->collectLogs();
 
@@ -119,7 +118,6 @@ class Logs extends BaseCollector
 	public function icon(): string
 	{
 		return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAACYSURBVEhLYxgFJIHU1FSjtLS0i0D8AYj7gEKMEBkqAaAFF4D4ERCvAFrwH4gDoFIMKSkpFkB+OTEYqgUTACXfA/GqjIwMQyD9H2hRHlQKJFcBEiMGQ7VgAqCBvUgK32dmZspCpagGGNPT0/1BLqeF4bQHQJePpiIwhmrBBEADR1MRfgB0+WgqAmOoFkwANHA0FY0CUgEDAwCQ0PUpNB3kqwAAAABJRU5ErkJggg==';
-
 	}
 
 	//--------------------------------------------------------------------
@@ -129,10 +127,12 @@ class Logs extends BaseCollector
 	 */
 	protected function collectLogs()
 	{
-		if (! is_null($this->data)) return;
+		if (! is_null($this->data))
+		{
+			return $this->data;
+		}
 
-		$logger = Services::logger(true);
-		$this->data = $logger->logCache;
+		return $this->data = Services::logger(true)->logCache ?? [];
 	}
 
 	//--------------------------------------------------------------------

@@ -1,11 +1,7 @@
 <?php
 namespace CodeIgniter\Helpers;
 
-use Config\App;
-use CodeIgniter\Config\Services;
-use Tests\Support\HTTP\MockResponse;
-
-final class DateHelperTest extends \CIUnitTestCase
+final class DateHelperTest extends \CodeIgniter\Test\CIUnitTestCase
 {
 
 	private $name;
@@ -13,7 +9,7 @@ final class DateHelperTest extends \CIUnitTestCase
 	private $expire;
 	private $response;
 
-	public function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 		helper('date');
@@ -24,7 +20,7 @@ final class DateHelperTest extends \CIUnitTestCase
 	public function testNowDefault()
 	{
 		$time = new \DateTime();
-		$this->assertLessThan(1, abs(now() - time()));  // close enough
+		$this->assertCloseEnough(now(), time());  // close enough
 	}
 
 	//--------------------------------------------------------------------
@@ -32,7 +28,7 @@ final class DateHelperTest extends \CIUnitTestCase
 	public function testNowSpecific()
 	{
 		// Chicago should be two hours ahead of Vancouver
-		$this->assertEquals(7200, now('America/Chicago') - now('America/Vancouver'));
+		$this->assertCloseEnough(7200, now('America/Chicago') - now('America/Vancouver'));
 	}
 
 }

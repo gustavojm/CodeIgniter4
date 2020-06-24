@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Database\SQLite3;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2017 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,14 +28,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package	CodeIgniter
- * @author	CodeIgniter Dev Team
- * @copyright	2014-2017 British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
+
+namespace CodeIgniter\Database\SQLite3;
+
 use CodeIgniter\Database\BaseBuilder;
 
 /**
@@ -43,65 +47,70 @@ use CodeIgniter\Database\BaseBuilder;
 class Builder extends BaseBuilder
 {
 
-    /**
-     * Identifier escape character
-     *
-     * @var    string
-     */
-    protected $escapeChar = '`';
+	/**
+	 * Identifier escape character
+	 *
+	 * @var string
+	 */
+	protected $escapeChar = '`';
 
 	/**
 	 * Default installs of SQLite typically do not
 	 * support limiting delete clauses.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
-    protected $canLimitDeletes = false;
+	protected $canLimitDeletes = false;
 
 	/**
 	 * Default installs of SQLite do no support
 	 * limiting update queries in combo with WHERE.
 	 *
-	 * @var bool
+	 * @var boolean
 	 */
-    protected $canLimitWhereUpdates = false;
+	protected $canLimitWhereUpdates = false;
 
-    //--------------------------------------------------------------------
+	/**
+	 * @var array
+	 */
+	protected $supportedIgnoreStatements = [
+		'insert' => 'OR IGNORE',
+	];
 
-    /**
-     * Replace statement
-     *
-     * Generates a platform-specific replace string from the supplied data
-     *
-     * @param    string    the table name
-     * @param    array     the insert keys
-     * @param    array     the insert values
-     *
-     * @return    string
-     */
-    protected function _replace($table, $keys, $values)
-    {
-        return 'INSERT OR '.parent::_replace($table, $keys, $values);
-    }
+	//--------------------------------------------------------------------
 
-    //--------------------------------------------------------------------
+	/**
+	 * Replace statement
+	 *
+	 * Generates a platform-specific replace string from the supplied data
+	 *
+	 * @param string $table  the table name
+	 * @param array  $keys   the insert keys
+	 * @param array  $values the insert values
+	 *
+	 * @return string
+	 */
+	protected function _replace(string $table, array $keys, array $values): string
+	{
+		return 'INSERT OR ' . parent::_replace($table, $keys, $values);
+	}
 
-    /**
-     * Truncate statement
-     *
-     * Generates a platform-specific truncate string from the supplied data
-     *
-     * If the database does not support the TRUNCATE statement,
-     * then this method maps to 'DELETE FROM table'
-     *
-     * @param	string	$table
-     * @return	string
-     */
-    protected function _truncate($table)
-    {
-        return 'DELETE FROM '.$table;
-    }
+	//--------------------------------------------------------------------
 
-    //--------------------------------------------------------------------
+	/**
+	 * Truncate statement
+	 *
+	 * Generates a platform-specific truncate string from the supplied data
+	 *
+	 * If the database does not support the TRUNCATE statement,
+	 * then this method maps to 'DELETE FROM table'
+	 *
+	 * @param  string $table
+	 * @return string
+	 */
+	protected function _truncate(string $table): string
+	{
+		return 'DELETE FROM ' . $table;
+	}
 
 }

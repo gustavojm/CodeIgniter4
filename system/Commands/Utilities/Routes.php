@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\Commands\Utilities;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -15,7 +16,7 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- *RouRouddfdf
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
@@ -27,14 +28,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package	CodeIgniter
- * @author	CodeIgniter Dev Team
- * @copyright	2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
+
+namespace CodeIgniter\Commands\Utilities;
+
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 use Config\Services;
@@ -102,22 +106,43 @@ class Routes extends BaseCommand
 	public function run(array $params)
 	{
 		$collection = Services::routes(true);
-		$methods = ['get', 'head', 'post', 'put', 'delete', 'options', 'trace', 'connect', 'cli'];
+		$methods    = [
+			'get',
+			'head',
+			'post',
+			'patch',
+			'put',
+			'delete',
+			'options',
+			'trace',
+			'connect',
+			'cli',
+		];
 
 		$tbody = [];
 		foreach ($methods as $method)
 		{
 			$routes = $collection->getRoutes($method);
 
-			foreach ($routes as $from => $to)
-			$tbody[] = [
-				$from,
-				$method,
-				$to
-			];
+			foreach ($routes as $route => $handler)
+			{
+				// filter for strings, as callbacks aren't displayable
+				if (is_string($handler))
+				{
+					$tbody[] = [
+						strtoupper($method),
+						$route,
+						$handler,
+					];
+				}
+			}
 		}
 
-		$thead = ['Route', 'Method', 'Command'];
+		$thead = [
+			'Method',
+			'Route',
+			'Handler',
+		];
 
 		CLI::table($tbody, $thead);
 	}

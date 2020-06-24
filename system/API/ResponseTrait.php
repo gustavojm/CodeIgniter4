@@ -1,4 +1,4 @@
-<?php namespace CodeIgniter\API;
+<?php
 
 /**
  * CodeIgniter
@@ -7,7 +7,8 @@
  *
  * This content is released under the MIT License (MIT)
  *
- * Copyright (c) 2014-2018 British Columbia Institute of Technology
+ * Copyright (c) 2014-2019 British Columbia Institute of Technology
+ * Copyright (c) 2019-2020 CodeIgniter Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,16 +28,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * @package	CodeIgniter
- * @author	CodeIgniter Dev Team
- * @copyright	2014-2018 British Columbia Institute of Technology (https://bcit.ca/)
- * @license	https://opensource.org/licenses/MIT	MIT License
- * @link	https://codeigniter.com
- * @since	Version 3.0.0
+ * @package    CodeIgniter
+ * @author     CodeIgniter Dev Team
+ * @copyright  2019-2020 CodeIgniter Foundation
+ * @license    https://opensource.org/licenses/MIT	MIT License
+ * @link       https://codeigniter.com
+ * @since      Version 4.0.0
  * @filesource
  */
-use Config\Format;
+
+namespace CodeIgniter\API;
+
 use CodeIgniter\HTTP\Response;
+use Config\Format;
 
 /**
  * Response trait.
@@ -52,7 +56,6 @@ use CodeIgniter\HTTP\Response;
  */
 trait ResponseTrait
 {
-
 	/**
 	 * Allows child classes to override the
 	 * status code that is used in their API.
@@ -60,33 +63,44 @@ trait ResponseTrait
 	 * @var array
 	 */
 	protected $codes = [
-		'created'					 => 201,
-		'deleted'					 => 200,
-		'invalid_request'			 => 400,
-		'unsupported_response_type'	 => 400,
-		'invalid_scope'				 => 400,
-		'temporarily_unavailable'	 => 400,
-		'invalid_grant'				 => 400,
-		'invalid_credentials'		 => 400,
-		'invalid_refresh'			 => 400,
-		'no_data'					 => 400,
-		'invalid_data'				 => 400,
-		'access_denied'				 => 401,
-		'unauthorized'				 => 401,
-		'invalid_client'			 => 401,
-		'forbidden'					 => 403,
-		'resource_not_found'		 => 404,
-		'not_acceptable'			 => 406,
-		'resource_exists'			 => 409,
-		'conflict'					 => 409,
-		'resource_gone'				 => 410,
-		'payload_too_large'			 => 413,
-		'unsupported_media_type'	 => 415,
-		'too_many_requests'			 => 429,
-		'server_error'				 => 500,
-		'unsupported_grant_type'	 => 501,
-		'not_implemented'			 => 501,
+		'created'                   => 201,
+		'deleted'                   => 200,
+		'updated'                   => 200,
+		'no_content'                => 204,
+		'invalid_request'           => 400,
+		'unsupported_response_type' => 400,
+		'invalid_scope'             => 400,
+		'temporarily_unavailable'   => 400,
+		'invalid_grant'             => 400,
+		'invalid_credentials'       => 400,
+		'invalid_refresh'           => 400,
+		'no_data'                   => 400,
+		'invalid_data'              => 400,
+		'access_denied'             => 401,
+		'unauthorized'              => 401,
+		'invalid_client'            => 401,
+		'forbidden'                 => 403,
+		'resource_not_found'        => 404,
+		'not_acceptable'            => 406,
+		'resource_exists'           => 409,
+		'conflict'                  => 409,
+		'resource_gone'             => 410,
+		'payload_too_large'         => 413,
+		'unsupported_media_type'    => 415,
+		'too_many_requests'         => 429,
+		'server_error'              => 500,
+		'unsupported_grant_type'    => 501,
+		'not_implemented'           => 501,
 	];
+
+	/**
+	 * How to format the response data.
+	 * Either 'json' or 'xml'. If blank will be
+	 * determine through content negotiation.
+	 *
+	 * @var string
+	 */
+	protected $format = 'json';
 
 	//--------------------------------------------------------------------
 
@@ -94,9 +108,9 @@ trait ResponseTrait
 	 * Provides a single, simple method to return an API response, formatted
 	 * to match the requested format, with proper content-type and status code.
 	 *
-	 * @param null   $data
-	 * @param int    $status
-	 * @param string $message
+	 * @param array|string|null $data
+	 * @param integer           $status
+	 * @param string            $message
 	 *
 	 * @return mixed
 	 */
@@ -130,23 +144,23 @@ trait ResponseTrait
 	 * Used for generic failures that no custom methods exist for.
 	 *
 	 * @param string|array $messages
-	 * @param int|null     $status HTTP status code
-	 * @param string|null  $code   Custom, API-specific, error code
+	 * @param integer|null $status        HTTP status code
+	 * @param string|null  $code          Custom, API-specific, error code
 	 * @param string       $customMessage
 	 *
 	 * @return mixed
 	 */
 	public function fail($messages, int $status = 400, string $code = null, string $customMessage = '')
 	{
-		if ( ! is_array($messages))
+		if (! is_array($messages))
 		{
 			$messages = ['error' => $messages];
 		}
 
 		$response = [
-			'status'	 => $status,
-			'error'		 => $code === null ? $status : $code,
-			'messages'	 => $messages,
+			'status'   => $status,
+			'error'    => $code === null ? $status : $code,
+			'messages' => $messages,
 		];
 
 		return $this->respond($response, $status, $customMessage);
@@ -183,6 +197,34 @@ trait ResponseTrait
 	public function respondDeleted($data = null, string $message = '')
 	{
 		return $this->respond($data, $this->codes['deleted'], $message);
+	}
+
+	/**
+	 * Used after a resource has been successfully updated.
+	 *
+	 * @param mixed  $data    Data.
+	 * @param string $message Message.
+	 *
+	 * @return mixed
+	 */
+	public function respondUpdated($data = null, string $message = '')
+	{
+		return $this->respond($data, $this->codes['updated'], $message);
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Used after a command has been successfully executed but there is no
+	 * meaningful reply to send back to the client.
+	 *
+	 * @param string $message Message.
+	 *
+	 * @return mixed
+	 */
+	public function respondNoContent(string $message = 'No Content')
+	{
+		return $this->respond(null, $this->codes['no_content'], $message);
 	}
 
 	//--------------------------------------------------------------------
@@ -326,9 +368,9 @@ trait ResponseTrait
 	 * Handles formatting a response. Currently makes some heavy assumptions
 	 * and needs updating! :)
 	 *
-	 * @param null $data
+	 * @param string|array|null $data
 	 *
-	 * @return null|string
+	 * @return string|null
 	 */
 	protected function format($data = null)
 	{
@@ -344,14 +386,19 @@ trait ResponseTrait
 			return $data;
 		}
 
-		// Determine correct response type through content negotiation
 		$config = new Format();
-		$format = $this->request->negotiate('media', $config->supportedResponseFormats, true);
+		$format = "application/$this->format";
+
+		// Determine correct response type through content negotiation if not explicitly declared
+		if (empty($this->format) || ! in_array($this->format, ['json', 'xml']))
+		{
+			$format = $this->request->negotiate('media', $config->supportedResponseFormats, false);
+		}
 
 		$this->response->setContentType($format);
 
 		// if we don't have a formatter, make one
-		if ( ! isset($this->formatter))
+		if (! isset($this->formatter))
 		{
 			// if no formatter, use the default
 			$this->formatter = $config->getFormatter($format);
@@ -367,4 +414,17 @@ trait ResponseTrait
 		return $this->formatter->format($data);
 	}
 
+	/**
+	 * Sets the format the response should be in.
+	 *
+	 * @param string $format
+	 *
+	 * @return $this
+	 */
+	public function setResponseFormat(string $format = null)
+	{
+		$this->format = strtolower($format);
+
+		return $this;
+	}
 }

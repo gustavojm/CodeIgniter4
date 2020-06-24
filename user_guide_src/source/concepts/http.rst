@@ -12,18 +12,18 @@ how to work with the requests and responses within CodeIgniter.
 What is HTTP?
 =============
 
-HTTP is simply a text-based language that allows two machines to talk to each other. When a browser
+HTTP is simply a text-based convention that allows two machines to talk to each other. When a browser
 requests a page, it asks the server if it can get the page. The server then prepares the page and sends
-response back to the browser that asked for it. That's pretty much it. Obviously, there are some complexities
+a response back to the browser that asked for it. That's pretty much it. Obviously, there are some complexities
 that you can use, but the basics are really pretty simple.
 
-HTTP is the term used to describe that language. It stands for HyperText Transfer Protocol. Your goal when
+HTTP is the term used to describe that exchange convention. It stands for HyperText Transfer Protocol. Your goal when
 you develop web applications is to always understand what the browser is requesting, and be able to
 respond appropriately.
 
 The Request
 -----------
-Whenever a client makes a request (a web browser, smartphone app, etc), it is sending a small text message
+Whenever a client (a web browser, smartphone app, etc) makes a request, it sends a small text message
 to the server and waits for a response.
 
 The request would look something like this::
@@ -67,20 +67,23 @@ Working with Requests and Responses
 -----------------------------------
 
 While PHP provides ways to interact with the request and response headers, CodeIgniter, like most frameworks,
-abstract them so that you have a consistent, simple interface to them. The :doc:`IncomingRequest class </libraries/incomingrequest>`
+abstracts them so that you have a consistent, simple interface to them. The :doc:`IncomingRequest class </incoming/incomingrequest>`
 is an object-oriented representation of the HTTP request. It provides everything you need::
 
 	use CodeIgniter\HTTP\IncomingRequest;
 
-	$request = new IncomingRequest(new \Config\App(), new \CodeIgniter\HTTP\URI());
+	$request = service('request');
 
 	// the URI being requested (i.e. /about)
 	$request->uri->getPath();
 
 	// Retrieve $_GET and $_POST variables
-	$request->getVar('foo');
 	$request->getGet('foo');
 	$request->getPost('foo');
+
+	// Retrieve from $_REQUEST which should include
+	// both $_GET and $_POST contents
+	$request->getVar('foo');
 
 	// Retrieve JSON from AJAX calls
 	$request->getJSON();
@@ -95,14 +98,16 @@ is an object-oriented representation of the HTTP request. It provides everything
 	$request->getMethod();  // GET, POST, PUT, etc
 
 The request class does a lot of work in the background for you, that you never need to worry about.
-The ``isAJAX()`` and ``isSecure()`` methods check several different methods to determine the correct answer.
+The `isAJAX()` and `isSecure()` methods check several different methods to determine the correct answer.
 
-CodeIgniter also provides a :doc:`Response class </libraries/response>` that is an object-oriented representation
+.. note:: The ``isAJAX()`` method depends on the ``X-Requested-With`` header, which in some cases is not sent by default in XHR requests via JavaScript (i.e. fetch). See the :doc:`AJAX Requests </general/ajax>` section on how to avoid this problem.
+
+CodeIgniter also provides a :doc:`Response class </outgoing/response>` that is an object-oriented representation
 of the HTTP response. This gives you an easy and powerful way to construct your response to the client::
 
   use CodeIgniter\HTTP\Response;
 
-  $response = new Response();
+  $response = service('response');
 
   $response->setStatusCode(Response::HTTP_OK);
   $response->setBody($output);
@@ -110,6 +115,7 @@ of the HTTP response. This gives you an easy and powerful way to construct your 
   $response->noCache();
 
   // Sends the output to the browser
+  // This is typically handled by the framework
   $response->send();
 
 In addition, the Response class allows you to work the HTTP cache layer for the best performance.
